@@ -11,7 +11,7 @@ $user_id = current_user_id();
 // Delete an event the user owns (POST, CSRF-checked in config.php). Registrations cascade.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_event'])) {
     $target_id = (int) ($_POST['event_id'] ?? 0);
-    $owned = db_all($conn, 'SELECT poster_path FROM events WHERE event_id = ? AND created_by = ?', 'ii', [$target_id, $user_id])[0] ?? null;
+    $owned = db_all($conn, 'SELECT event_name, poster_path FROM events WHERE event_id = ? AND created_by = ?', 'ii', [$target_id, $user_id])[0] ?? null;
 
     if ($owned) {
         $stmt = $conn->prepare('DELETE FROM events WHERE event_id = ? AND created_by = ?');
@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_event'])) {
         $stmt->execute();
         $stmt->close();
         delete_upload($owned['poster_path'], POSTER_DIR);
+        audit($conn, 'event.delete', 'event', $target_id, $owned['event_name']);
         flash('success', 'Event deleted.');
     } else {
         flash('error', 'You can only delete events you organise.');

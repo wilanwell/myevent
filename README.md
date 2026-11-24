@@ -21,6 +21,11 @@ approval, attendance tracking, notifications and participant exports.
    ```
 4. Open http://localhost/myevent.
 
+Generate `APP_KEY` (signs ticket QR codes) and put it in `.env`:
+```
+php -r "echo bin2hex(random_bytes(32));"
+```
+
 Demo accounts created by `seed.sql` are listed at the top of that file.
 Delete or change them before going live.
 
@@ -32,6 +37,38 @@ mysql -u root myevent < database/migrations/<file>.sql
 ```
 `database/schema.sql` always reflects the schema after the latest migration.
 Back up first (`mysqldump -u root myevent > backup.sql`).
+
+## Email
+
+`MAIL_DRIVER=log` (development) saves every email to `storage/mail/` instead of sending it.
+With `APP_DEBUG=true` the password-reset screen also shows the link. For a real server set:
+
+```
+MAIL_DRIVER=smtp
+SMTP_HOST=smtp.gmail.com      # or your provider
+SMTP_PORT=587
+SMTP_ENCRYPTION=tls           # tls = STARTTLS on 587, ssl = port 465
+SMTP_USERNAME=you@example.com
+SMTP_PASSWORD=app-password
+MAIL_FROM=no-reply@example.com
+```
+
+## Tickets and check-in
+
+Approved participants get a ticket with a QR code and a code such as `ME-0044-00012-7F3A9C`.
+The last part is an HMAC signature made with `APP_KEY`, so codes cannot be guessed or edited.
+The QR opens `users/checkin.php`; the organiser (or an admin) confirms the check-in there.
+Scanning with any phone camera works. The phone must be able to reach `APP_URL`, so for
+testing on a phone over Wi-Fi set `APP_URL` to the computer's LAN address, e.g. `http://192.168.1.20/myevent`.
+
+## Tests
+
+End-to-end checks of security rules and the main workflows (HTTP level, against the running app):
+```
+bash tests/e2e.sh
+```
+It creates throwaway `qa_*@example.test` accounts and removes them afterwards.
+Override `BASE`, `MYSQL` or `DB` with environment variables if your setup differs.
 
 ## Project layout
 
@@ -50,7 +87,10 @@ Back up first (`mysqldump -u root myevent > backup.sql`).
 | `auth/`, `users/`, `admin/` | Pages. Each page sets `$page_title` / `$nav_active` and includes a layout |
 | `uploads/events`, `uploads/profiles` | User uploads (script execution blocked by `uploads/.htaccess`) |
 | `database/` | `schema.sql`, `seed.sql`, `migrations/` |
-| `storage/logs` | PHP error log (not web-accessible) |
+| `include/mailer.php` | `send_mail()` with log and SMTP drivers |
+| `admin/audit.php` | Audit log of deletions, role changes, approvals, check-ins and password resets |
+| `tests/e2e.sh` | End-to-end test suite |
+| `storage/logs`, `storage/mail` | PHP error log and development mailbox (not web-accessible) |
 
 ### Adding a page
 

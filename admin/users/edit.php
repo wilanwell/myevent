@@ -14,6 +14,7 @@ if (!$user) {
 }
 
 $error = '';
+$original = $user;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name     = trim((string) ($_POST['name'] ?? ''));
     $email    = strtolower(trim((string) ($_POST['email'] ?? '')));
@@ -32,6 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('ssssi', $name, $email, $role, $category, $id);
         try {
             $stmt->execute();
+            $changes = [];
+            foreach (['name', 'email', 'category', 'role'] as $f) {
+                if ($original[$f] !== $$f) {
+                    $changes[] = "$f: {$original[$f]} -> {$$f}";
+                }
+            }
+            audit($conn, $original['role'] !== $role ? 'user.role_change' : 'user.update', 'user', $id, implode('; ', $changes) ?: 'No changes');
             flash('success', 'Saved changes to ' . $name . '.');
             redirect('admin/users/manage.php');
         } catch (mysqli_sql_exception $ex) {

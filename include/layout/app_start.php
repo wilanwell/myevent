@@ -25,6 +25,7 @@ if ($nav_area === 'admin') {
             'admin_events'   => ['All events',   'fa-calendar-days', $u . 'admin/events/manage.php'],
             'admin_create'   => ['Create event', 'fa-circle-plus',   $u . 'admin/events/create.php'],
             'admin_users'    => ['Users',        'fa-users',         $u . 'admin/users/manage.php'],
+            'admin_audit'    => ['Audit log',    'fa-clipboard-list', $u . 'admin/audit.php'],
             'admin_profile'  => ['My profile',   'fa-user-gear',     $u . 'admin/profile.php'],
         ],
         'My account' => [
@@ -43,6 +44,7 @@ if ($nav_area === 'admin') {
             'my_events'        => ['My events',        'fa-calendar-check',    $u . 'users/my_events.php'],
             'create_event'     => ['Create event',     'fa-circle-plus',       $u . 'users/create_event.php'],
             'participants'     => ['Participants',     'fa-users-gear',        $u . 'users/manage_participants.php'],
+            'checkin'          => ['Check in',         'fa-qrcode',            $u . 'users/checkin.php'],
         ],
         'Account' => [
             'profile'          => ['My profile',       'fa-user-pen',          $u . 'users/profile.php'],
@@ -91,7 +93,10 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
     </nav>
     <div class="sidebar-footer">
         <a class="nav-link" href="<?= e($u) ?>index.php"><i class="fa-solid fa-globe" aria-hidden="true"></i>Public site</a>
-        <a class="nav-link is-danger" href="<?= e($u) ?>auth/logout.php"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>Log out</a>
+        <form action="<?= e($u) ?>auth/logout.php" method="POST">
+            <?= csrf_field() ?>
+            <button type="submit" class="nav-link is-danger"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>Log out</button>
+        </form>
     </div>
 </aside>
 <div class="scrim" data-nav-close></div>

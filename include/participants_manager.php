@@ -21,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $updates = [
         'approve' => ["approval_status = 'Approved'", "✅ Your registration for <strong>%s</strong> has been approved. Your ticket is ready in My registrations.", 'Registration approved.'],
         'reject'  => ["approval_status = 'Rejected'", "Your registration for <strong>%s</strong> was not approved.", 'Registration rejected.'],
-        'present' => ["attendance_status = 'Present'", null, 'Marked as present.'],
-        'absent'  => ["attendance_status = 'Absent'", null, 'Marked as absent.'],
+        'present' => ["attendance_status = 'Present', checked_in_at = NOW()", null, 'Checked in.'],
+        'absent'  => ["attendance_status = 'Absent', checked_in_at = NULL", null, 'Check-in undone.'],
     ];
 
     if (!$reg || !isset($updates[$action])) {
@@ -39,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param('ii', $reg_id, $event_id);
     $stmt->execute();
     $stmt->close();
+
+    audit($conn, 'registration.' . $action, 'registration', $reg_id, $pm_event['event_name']);
 
     if ($notice) {
         $msg = sprintf($notice, $pm_event['event_name']);
@@ -68,8 +70,8 @@ if ($q !== '') {
     $where .= ' AND (u.name LIKE ? OR u.email LIKE ? OR r.reg_id = ?)';
     $types .= 'ssi';
     $like = '%' . $q . '%';
-    // Ticket codes look like ME-0044-00012: the last number is the registration id.
-    $ticketReg = preg_match('/(\d+)\s*$/', $q, $m) ? (int) $m[1] : 0;
+    // A full ticket code (ME-0044-00012-7F3A9C) finds that registration directly.
+    $ticketReg = ($t = verify_ticket_code($q)) && $t['event_id'] === $event_id ? $t['reg_id'] : 0;
     array_push($params, $like, $like, $ticketReg);
 }
 
@@ -133,6 +135,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                 <noscript><button class="btn btn-secondary" type="submit">Go</button></noscript>
             </form>
         <?php endif; ?>
+        <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>users/checkin.php"><i class="fa-solid fa-qrcode"></i> Check in</a>
         <a class="btn btn-secondary" href="<?= e(url_with(['export' => 'csv', 'page' => null])) ?>"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
         <a class="btn btn-ghost" href="<?= e(BASE_URL) ?>event_detail.php?id=<?= $event_id ?>">View event page</a>
     </div>
@@ -189,7 +192,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                 </div>
                             </div>
                         </td>
-                        <td class="cell-muted"><?= e(date('j M Y', strtotime($row['registration_date']))) ?><br><span title="Ticket code"><?= e(sprintf('ME-%04d-%05d', $event_id, (int) $row['reg_id'])) ?></span></td>
+                        <td class="cell-muted"><?= e(date('j M Y', strtotime($row['registration_date']))) ?><br><span title="Ticket code"><?= e(ticket_code($event_id, (int) $row['reg_id'])) ?></span></td>
                         <td><?= status_badge($row['approval_status']) ?></td>
                         <td>
                             <?php if ($row['approval_status'] === 'Approved'): ?>

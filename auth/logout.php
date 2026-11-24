@@ -1,23 +1,32 @@
 <?php
 /**
- * MyEvent - Logout
- * Clears the session data, expires the session cookie and returns home.
+ * MyEvent - Log out (POST only, CSRF-checked in config.php).
+ * A GET shows a small confirmation form so old links and bookmarks still work.
  */
 require_once __DIR__ . '/../config.php';
 
-$_SESSION = [];
-
-if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', [
-        'expires'  => time() - 42000,
-        'path'     => $params['path'],
-        'domain'   => $params['domain'],
-        'secure'   => $params['secure'],
-        'httponly' => $params['httponly'],
-        'samesite' => $params['samesite'] ?? 'Lax',
-    ]);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    if (!is_logged_in()) {
+        redirect('index.php');
+    }
+    $page_title = 'Log out';
+    include ROOT_PATH . '/include/layout/public_start.php';
+    ?>
+    <section class="section" style="max-width:520px">
+        <div class="public-card card-body">
+            <h1 class="page-title">Log out?</h1>
+            <p class="cell-muted">You will need to log in again to see your registrations.</p>
+            <form method="POST" class="form-actions">
+                <?= csrf_field() ?>
+                <a class="btn btn-ghost" href="<?= e(BASE_URL) ?>users/dashboard.php">Stay logged in</a>
+                <button type="submit" class="btn btn-primary">Log out</button>
+            </form>
+        </div>
+    </section>
+    <?php
+    include ROOT_PATH . '/include/layout/public_end.php';
+    exit;
 }
-session_destroy();
 
+end_session();
 redirect('index.php');

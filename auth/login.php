@@ -43,6 +43,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <div class="field">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" autocomplete="current-password" required>
+                    <a class="hint" href="forgot_password.php">Forgot your password?</a>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block btn-lg">Log in</button>
             </form>

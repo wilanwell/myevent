@@ -178,3 +178,70 @@ function db_value(mysqli $conn, string $sql, string $types = '', array $params =
     $stmt->close();
     return $row[0] ?? null;
 }
+
+/* ------------------------------------------------------------------ */
+/* Audit trail                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Record a sensitive action (deletions, role changes, approvals, check-ins, password resets).
+ * Never throws: auditing must not break the action itself.
+ */
+function audit(mysqli $conn, string $action, ?string $targetType = null, ?int $targetId = null, string $details = ''): void
+{
+    try {
+        $actor = current_user_id();
+        $name  = $_SESSION['name'] ?? null;
+        $ip    = client_ip();
+        $details = mb_substr($details, 0, 500);
+        $stmt = $conn->prepare('INSERT INTO audit_log (actor_id, actor_name, action, target_type, target_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt->bind_param('isssiss', $actor, $name, $action, $targetType, $targetId, $details, $ip);
+        $stmt->execute();
+        $stmt->close();
+    } catch (Throwable $ex) {
+        error_log('[audit] ' . $ex->getMessage());
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Signed tickets                                                      */
+/* ------------------------------------------------------------------ */
+
+/** Secret for signing tickets. */
+function app_key(): string
+{
+    $key = (string) env('APP_KEY', '');
+    if (strlen($key) < 32) {
+        throw new RuntimeException('APP_KEY is missing or too short. Set it in .env (see .env.example).');
+    }
+    return $key;
+}
+
+/** Human-readable ticket code, e.g. ME-0044-00012-7F3A9C. The suffix is an HMAC so codes cannot be guessed. */
+function ticket_code(int $eventId, int $regId): string
+{
+    $sig = strtoupper(substr(hash_hmac('sha256', "ticket:$eventId:$regId", app_key()), 0, 6));
+    return sprintf('ME-%04d-%05d-%s', $eventId, $regId, $sig);
+}
+
+/**
+ * Parse and verify a ticket code (case/spacing tolerant).
+ * @return array{event_id:int, reg_id:int}|null
+ */
+function verify_ticket_code(string $code): ?array
+{
+    $code = strtoupper(preg_replace('/[^A-Za-z0-9-]/', '', $code));
+    if (!preg_match('/^ME-(\d{1,8})-(\d{1,10})-([0-9A-F]{6})$/', $code, $m)) {
+        return null;
+    }
+    $expected = ticket_code((int) $m[1], (int) $m[2]);
+    return hash_equals($expected, sprintf('ME-%04d-%05d-%s', (int) $m[1], (int) $m[2], $m[3]))
+        ? ['event_id' => (int) $m[1], 'reg_id' => (int) $m[2]]
+        : null;
+}
+
+/** URL encoded in the ticket QR: opening it lets the organiser check the participant in. */
+function ticket_checkin_url(string $code): string
+{
+    return BASE_URL . 'users/checkin.php?code=' . rawurlencode($code);
+}

@@ -107,6 +107,7 @@ h1, h2, h3, h4 { color: var(--ink); line-height: 1.25; margin: 0; font-weight: 7
     padding: 9px 10px; border-radius: var(--radius-md);
     color: #c9cde0; text-decoration: none; font-size: var(--fs-md); font-weight: 500;
 }
+button.nav-link { width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
 .nav-link i { width: 18px; text-align: center; color: #8d94b5; }
 .nav-link:hover { background: var(--ink-soft); color: #fff; }
 .nav-link:hover i { color: #fff; }

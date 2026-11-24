@@ -10,7 +10,7 @@ require_post();
 
 $event_id = (int) ($_POST['id'] ?? 0);
 
-$stmt = $conn->prepare('SELECT poster_path FROM events WHERE event_id = ?');
+$stmt = $conn->prepare('SELECT event_name, poster_path FROM events WHERE event_id = ?');
 $stmt->bind_param('i', $event_id);
 $stmt->execute();
 $event = $stmt->get_result()->fetch_assoc();
@@ -40,6 +40,7 @@ try {
 }
 
 delete_upload($event['poster_path'], POSTER_DIR);
+audit($conn, 'event.delete', 'event', $event_id, $event['event_name']);
 
 flash('success', 'Event and all associated registrations deleted.');
 redirect('admin/events/manage.php');

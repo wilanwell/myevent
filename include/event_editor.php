@@ -108,7 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param($types . 'i', ...$cols);
         }
         $stmt->execute();
+        $savedId = $editing ? (int) $editor_event['event_id'] : (int) $conn->insert_id;
         $stmt->close();
+        audit($conn, $editing ? 'event.update' : 'event.create', 'event', $savedId, $data['event_name']);
 
         if ($newPoster && $editing) {
             delete_upload($editor_event['poster_path'], POSTER_DIR);

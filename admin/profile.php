@@ -10,7 +10,7 @@ $user = db_all($conn,
     'SELECT name, email, phone, organization, bio, profile_pic, category, recommend_events FROM users WHERE user_id = ?',
     'i', [current_user_id()])[0] ?? null;
 if (!$user) {
-    redirect('auth/logout.php');
+    force_logout('Your account could not be found. Please log in again.');
 }
 
 $page_title = 'My profile';

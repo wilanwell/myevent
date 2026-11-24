@@ -51,6 +51,7 @@ ini_set('error_log', APP_ROOT . '/storage/logs/php-error.log');
 
 require_once APP_ROOT . '/include/security.php';
 require_once APP_ROOT . '/include/helpers.php';
+require_once APP_ROOT . '/include/mailer.php';
 
 set_exception_handler(function (Throwable $ex) {
     error_log('[' . date('c') . '] ' . get_class($ex) . ': ' . $ex->getMessage()

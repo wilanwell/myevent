@@ -12,3 +12,5 @@ uploads/profiles/*
 !uploads/.htaccess
 !uploads/events/.gitkeep
 !uploads/profiles/.gitkeep
+storage/mail/*
+!storage/mail/.gitkeep

@@ -20,7 +20,7 @@ function handle_profile_update(mysqli $conn, string $backPath): void
     $stmt->close();
 
     if (!$current) {
-        redirect('auth/logout.php');
+        force_logout('Your account could not be found. Please log in again.');
     }
 
     $allowedInterests = ['workshop', 'seminar', 'competition', 'festival', 'sport', 'course'];

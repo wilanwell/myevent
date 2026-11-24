@@ -115,6 +115,29 @@ function require_post(): void
     }
 }
 
+/** End the current session completely (data, cookie and ID). */
+function end_session(): void
+{
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $p = session_get_cookie_params();
+        setcookie(session_name(), '', [
+            'expires' => time() - 42000, 'path' => $p['path'], 'domain' => $p['domain'],
+            'secure' => $p['secure'], 'httponly' => $p['httponly'], 'samesite' => $p['samesite'] ?? 'Lax',
+        ]);
+    }
+    session_destroy();
+}
+
+/** Log out and send to the login page, e.g. when the signed-in account no longer exists. */
+function force_logout(string $message = 'Please log in again.'): void
+{
+    end_session();
+    session_start();
+    flash('info', $message);
+    redirect('auth/login.php');
+}
+
 /** Redirect to a path relative to the application root and stop. */
 function redirect(string $path): void
 {

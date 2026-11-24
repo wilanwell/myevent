@@ -22,8 +22,9 @@ if (!$data) {
     redirect('users/my_registrations.php');
 }
 
-// Human-readable ticket code the organiser can match against the participant list.
-$code = sprintf('ME-%04d-%05d', $event_id, (int) $data['reg_id']);
+// Signed ticket code; the QR encodes a check-in link containing it.
+$code = ticket_code($event_id, (int) $data['reg_id']);
+$qr_url = ticket_checkin_url($code);
 $ts = strtotime($data['event_date']);
 ?>
 <!DOCTYPE html>
@@ -45,6 +46,9 @@ $ts = strtotime($data['event_date']);
         .ticket-code b { font-size: var(--fs-xl); letter-spacing: 0.06em; color: var(--ink); font-variant-numeric: tabular-nums; }
         .ticket-actions { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
         .ticket-note { color: var(--muted); font-size: var(--fs-sm); margin-top: 16px; text-align: center; }
+        .ticket-qr { display: flex; align-items: center; gap: 18px; }
+        .ticket-qr #qr { width: 132px; height: 132px; flex: none; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+        .ticket-qr #qr img, .ticket-qr #qr canvas { width: 100% !important; height: 100% !important; }
         @media print {
             body { background: #fff; padding: 0; }
             .ticket-actions { display: none; }
@@ -75,9 +79,12 @@ $ts = strtotime($data['event_date']);
                 <li><i class="fa-regular fa-user" aria-hidden="true"></i> <?= e($data['user_name']) ?>, <?= e($data['email']) ?></li>
                 <?php if ($data['organiser']): ?><li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Organised by <?= e($data['organiser']) ?></li><?php endif; ?>
             </ul>
-            <div class="ticket-code">
-                <span><span class="cell-muted">Ticket code</span><br><b><?= e($code) ?></b></span>
-                <span><span class="cell-muted">Approved registration from</span><br><?= e(date('j M Y', strtotime($data['registration_date']))) ?></span>
+            <div class="ticket-code ticket-qr">
+                <div id="qr" role="img" aria-label="QR code for ticket <?= e($code) ?>" data-qr="<?= e($qr_url) ?>"></div>
+                <span>
+                    <span class="cell-muted">Ticket code</span><br><b><?= e($code) ?></b><br>
+                    <span class="cell-muted">Registered <?= e(date('j M Y', strtotime($data['registration_date']))) ?></span>
+                </span>
             </div>
         </div>
     </article>
@@ -85,7 +92,21 @@ $ts = strtotime($data['event_date']);
     <?php if (trim((string) $data['remarks']) !== ''): ?>
         <p class="ticket-note"><strong>Before you come:</strong> <?= e($data['remarks']) ?></p>
     <?php endif; ?>
-    <p class="ticket-note">Show this ticket on your phone or printed at the entrance.</p>
+    <p class="ticket-note">Show this ticket on your phone or printed at the entrance. The organiser scans the QR code to check you in.</p>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+    (function () {
+        var box = document.getElementById('qr');
+        if (window.QRCode && box) {
+            new QRCode(box, { text: box.getAttribute('data-qr'), width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+        } else if (box) {
+            box.textContent = 'QR unavailable offline. Use the ticket code.';
+            box.style.fontSize = '12px';
+        }
+    })();
+</script>
 </body>
 </html>
