@@ -1,10 +1,9 @@
 <?php
-session_start();
 require_once '../config.php';
 
-if (!isset($_SESSION['loggedin'])) { header("location: ../auth/login.php"); exit; }
+require_login();
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = current_user_id();
 
 // Handle "Clear All" Action
 if (isset($_POST['clear_all'])) {
@@ -12,12 +11,15 @@ if (isset($_POST['clear_all'])) {
     $stmt_clear = $conn->prepare($clear_sql);
     $stmt_clear->bind_param("i", $user_id);
     $stmt_clear->execute();
-    header("Location: notifications.php");
-    exit;
+    flash('success', 'All notifications cleared.');
+    redirect('users/notifications.php');
 }
 
 // 1. Mark all as read when page is opened
-$conn->query("UPDATE notifications SET is_read = 1 WHERE user_id = $user_id");
+$mark = $conn->prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?');
+$mark->bind_param('i', $user_id);
+$mark->execute();
+$mark->close();
 
 // 2. Fetch Notifications
 $sql = "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC";
@@ -70,12 +72,14 @@ $result = $stmt->get_result();
     </nav>
 
     <div class="main-content">
+        <?php include ROOT_PATH . '/include/flash.php'; ?>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <h2 style="margin:0;">🔔 Notifications</h2>
             
             <div style="display: flex; gap: 15px; align-items: center;">
                 <?php if ($result->num_rows > 0): ?>
                     <form method="POST" onsubmit="return confirm('Clear all notifications permanently?');">
+                        <?= csrf_field() ?>
                         <button type="submit" name="clear_all" class="btn-clear">
                             <i class="fa-solid fa-trash-can"></i> Clear All
                         </button>
@@ -89,7 +93,7 @@ $result = $stmt->get_result();
             <?php while($row = $result->fetch_assoc()): ?>
                 <div class="notif-card">
                     <span class="time"><i class="fa-regular fa-clock"></i> <?= date('M d, Y • h:i A', strtotime($row['created_at'])); ?></span>
-                    <div class="message"><?= nl2br($row['message']); ?></div>
+                    <div class="message"><?= render_message($row['message']) ?></div>
                 </div>
             <?php endwhile; ?>
         <?php else: ?>

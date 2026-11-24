@@ -1,12 +1,6 @@
 <?php 
 require_once __DIR__ . '/../../config.php'; 
-if (session_status() === PHP_SESSION_NONE) session_start();
-
-// Security Check
-if (!isset($_SESSION['loggedin']) || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../../auth/login.php");
-    exit;
-}
+require_admin();
 ?> 
 
 <!DOCTYPE html> 
@@ -57,9 +51,11 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['role'] !== 'Admin') {
   </aside>
 
   <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
       <div class="form-card">
           <h2>Create New Event</h2>
-          <form action="create_action.php" method="POST" enctype="multipart/form-data"> 
+          <form action="create_action.php" method="POST" enctype="multipart/form-data">
+              <?= csrf_field() ?> 
               <div class="form-grid">
                   <div class="form-group"> 
                       <label class="required">Event Name</label> 

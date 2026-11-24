@@ -1,34 +1,44 @@
 <?php
+/**
+ * MyEvent - Organiser: manage participants of the organiser's OWN events.
+ */
+require_once __DIR__ . '/../config.php';
 
-session_start();
-require_once '../config.php';
+require_login();
 
-// 1. Access Control
-if (!isset($_SESSION['loggedin'])) {
-    header("location: ../auth/login.php");
-    exit;
+$user_id  = current_user_id();
+$event_id = (int) ($_GET['event_id'] ?? 0);
+
+// Ownership check: organisers may only see/manage their own events.
+if ($event_id) {
+    $own = $conn->prepare('SELECT 1 FROM events WHERE event_id = ? AND created_by = ?');
+    $own->bind_param('ii', $event_id, $user_id);
+    $own->execute();
+    $isOwner = (bool) $own->get_result()->fetch_row();
+    $own->close();
+    if (!$isOwner) {
+        flash('error', 'You can only manage participants of events you organise.');
+        redirect('users/manage_participants.php');
+    }
 }
-
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
-$event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
 
 // 2. HANDLE ACTIONS (POST Logic)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // ACTION: UPDATE STATUS (Toggles Attendance or Approval)
     if (isset($_POST['action_type']) && isset($_POST['reg_id'])) {
-        $reg_id = intval($_POST['reg_id']);
-        $action = $_POST['action_type'];
+        $reg_id = (int) $_POST['reg_id'];
+        $action = (string) $_POST['action_type'];
         $sql = "";
         $notif_message = "";
 
         // Fetch Student ID and Event Name for the notification
-        $info_query = $conn->prepare("SELECT r.user_id, e.event_name FROM registrations r JOIN events e ON r.event_id = e.event_id WHERE r.reg_id = ?");
-        $info_query->bind_param("i", $reg_id);
+        $info_query = $conn->prepare("SELECT r.user_id, e.event_name FROM registrations r JOIN events e ON r.event_id = e.event_id WHERE r.reg_id = ? AND r.event_id = ? AND e.created_by = ?");
+        $info_query->bind_param("iii", $reg_id, $event_id, $user_id);
         $info_query->execute();
         $info = $info_query->get_result()->fetch_assoc();
-        $target_student = $info['user_id'];
-        $event_name = $info['event_name'];
+        $target_student = $info['user_id'] ?? null;
+        $event_name = $info['event_name'] ?? '';
 
         if ($action == 'approve') {
             $sql = "UPDATE registrations SET approval_status='Approved' WHERE reg_id=?";
@@ -42,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $sql = "UPDATE registrations SET attendance_status='Absent' WHERE reg_id=?";
         }
 
-        if ($sql != "") {
+        if ($sql != "" && $info) {
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("i", $reg_id);
             if ($stmt->execute() && !empty($notif_message)) {
@@ -57,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // ACTION: EXPORT CSV
     if (isset($_POST['export_csv']) && $event_id) {
         ob_clean(); 
-        header('Content-Type: text/csv');
+        header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="participants_list.csv"');
         
         $output = fopen('php://output', 'w');
@@ -73,11 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $rows = $stmt->get_result();
         
         while ($row = $rows->fetch_assoc()) {
-            fputcsv($output, $row);
+            fputcsv($output, csv_row($row));
         }
         fclose($output);
         exit();
     }
+
+    // Post/Redirect/Get
+    redirect('users/manage_participants.php' . ($event_id ? '?event_id=' . $event_id : ''));
 }
 
 // 3. FETCH ORGANIZED EVENTS (For Dropdown)
@@ -143,13 +156,14 @@ if ($event_id) {
     </nav>
 
     <div class="main-content">
+        <?php include ROOT_PATH . '/include/flash.php'; ?>
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h2>Manage Participants</h2>
             <form method="GET">
                 <select name="event_id" onchange="this.form.submit()" style="padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
                     <option value="">-- Select Event --</option>
                     <?php while($e = $events_list->fetch_assoc()): ?>
-                        <option value="<?= $e['event_id'] ?>" <?= ($event_id == $e['event_id']) ? 'selected' : '' ?>><?= htmlspecialchars($e['event_name']) ?></option>
+                        <option value="<?= e($e['event_id']) ?>" <?= ($event_id == $e['event_id']) ? 'selected' : '' ?>><?= e($e['event_name']) ?></option>
                     <?php endwhile; ?>
                 </select>
             </form>
@@ -161,6 +175,7 @@ if ($event_id) {
                 <h3 style="margin:0;"><i class="fa-solid fa-users"></i> Registered (<?= $participants->num_rows ?>)</h3>
                 
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <button type="submit" name="export_csv" class="btn-export">
                         <i class="fa-solid fa-file-excel"></i> Export CSV
                     </button>
@@ -181,11 +196,11 @@ if ($event_id) {
                     <?php while($row = $participants->fetch_assoc()): ?>
                     <tr>
                         <td>
-                            <strong><?= htmlspecialchars($row['name']) ?></strong><br>
-                            <small style="color: #64748b;"><?= htmlspecialchars($row['email']) ?></small>
+                            <strong><?= e($row['name']) ?></strong><br>
+                            <small style="color: #64748b;"><?= e($row['email']) ?></small>
                         </td>
 
-                        <td><small><?= htmlspecialchars($row['event_name']) ?></small></td>
+                        <td><small><?= e($row['event_name']) ?></small></td>
 
                         <td>
                             <?php 
@@ -193,13 +208,14 @@ if ($event_id) {
                                 if($row['approval_status'] == 'Approved') $status_class = 'badge-approved';
                                 if($row['approval_status'] == 'Rejected') $status_class = 'badge-rejected';
                             ?>
-                            <span class="badge <?= $status_class ?>"><?= $row['approval_status'] ?></span>
+                            <span class="badge <?= e($status_class) ?>"><?= e($row['approval_status']) ?></span>
                         </td>
 
                         <td style="text-align:center;">
                             <?php if($row['approval_status'] == 'Approved'): ?>
                                 <form method="POST">
-                                    <input type="hidden" name="reg_id" value="<?= $row['reg_id'] ?>">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="reg_id" value="<?= e($row['reg_id']) ?>">
                                     <button type="submit" name="action_type" value="<?= ($row['attendance_status']=='Present')?'absent':'present' ?>" class="checklist-btn">
                                         <i class="<?= ($row['attendance_status']=='Present')?'fas fa-check-square':'far fa-square' ?>"></i>
                                     </button>
@@ -212,7 +228,8 @@ if ($event_id) {
                         <td>
                             <?php if($row['approval_status'] == 'Pending'): ?>
                                 <form method="POST" style="display:inline;">
-                                    <input type="hidden" name="reg_id" value="<?= $row['reg_id'] ?>">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="reg_id" value="<?= e($row['reg_id']) ?>">
                                     <button type="submit" name="action_type" value="approve" style="color:#15803d; border:none; background:none; cursor:pointer; font-size:1.2rem;" title="Approve"><i class="fa-solid fa-circle-check"></i></button>
                                     <button type="submit" name="action_type" value="reject" style="color:#b91c1c; border:none; background:none; cursor:pointer; font-size:1.2rem;" title="Reject"><i class="fa-solid fa-circle-xmark"></i></button>
                                 </form>

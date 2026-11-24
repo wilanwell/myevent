@@ -1,83 +1,51 @@
 <?php
-require_once __DIR__ . '/../../config.php'; 
+/**
+ * MyEvent Admin - Create event handler
+ */
+require_once __DIR__ . '/../../config.php';
 
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_admin();
+require_post();
 
-// Security Check
-if (!isset($_SESSION['loggedin']) || $_SESSION['role'] !== 'Admin') {
-    die("Unauthorized access.");
+$event_name  = trim((string) ($_POST['event_name'] ?? ''));
+$description = trim((string) ($_POST['description'] ?? ''));
+$category_id = (int) ($_POST['category_id'] ?? 0);
+$contact_no  = trim((string) ($_POST['contact_no'] ?? ''));
+$venue       = trim((string) ($_POST['venue'] ?? ''));
+$event_date  = (string) ($_POST['event_date'] ?? '');
+$event_time  = (string) ($_POST['event_time'] ?? '');
+$mode        = (string) ($_POST['mode'] ?? '');
+$reg_close   = (string) ($_POST['reg_close_date'] ?? '');
+$max_part    = max(0, (int) ($_POST['max_participants'] ?? 0));
+$fee         = max(0, (float) ($_POST['fee'] ?? 0));
+$remarks     = trim((string) ($_POST['remarks'] ?? ''));
+$user_id     = current_user_id(); // previously read an unset key, so created_by was always NULL
+
+if ($event_name === '' || $venue === '' || $event_date === '' || $event_time === ''
+    || !in_array($mode, ['Physical', 'Online', 'Hybrid'], true)) {
+    flash('error', 'Please fill in all required fields with valid values.');
+    redirect('admin/events/create.php');
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {    
-    // 1. Collect form data
-    $event_name     = $_POST['event_name'];
-    $description    = $_POST['description'];
-    $category_id    = intval($_POST['category_id']);
-    $contact_no     = $_POST['contact_no'] ?? ''; 
-    $venue          = $_POST['venue'];
-    $event_date     = $_POST['event_date'];
-    $event_time     = $_POST['event_time'];           
-    $mode           = $_POST['mode'];
-    $reg_close      = $_POST['reg_close_date'];       
-    $max_part       = !empty($_POST['max_participants']) ? intval($_POST['max_participants']) : 0; 
-    $fee            = floatval($_POST['fee']);        
-    $remarks        = $_POST['remarks'] ?? '';        
-    
-    // Check for user_id to prevent "Undefined array key" warning
-    $user_id        = $_SESSION['user_id'] ?? NULL;      
-
-    // 2. Handle file upload
-    $filename = "";
-    if (isset($_FILES['poster']) && $_FILES['poster']['error'] == 0) {
-        $upload_dir = ROOT_PATH . '/uploads/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
-        $filename = time() . '_' . basename($_FILES["poster"]["name"]); 
-        move_uploaded_file($_FILES["poster"]["tmp_name"], $upload_dir . $filename);
-    }
-
-    // 3. Insert into database based on your actual table columns
-    $sql = "INSERT INTO events (
-        event_name, description, category_id, contact_no, 
-        venue, event_date, event_time, mode, reg_close_date, 
-        max_participants, fee, remarks, poster_path, created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssissssssidssi", 
-        $event_name, $description, $category_id, $contact_no,
-        $venue, $event_date, $event_time, $mode, $reg_close,
-        $max_part, $fee, $remarks, $filename, $user_id
-    );
-
-    $message = "";
-    if ($stmt->execute()) {
-        $message = "✅ Event created successfully.";
-    } else {
-        $message = "❌ Error creating event: " . $stmt->error;
-    }
-
-    $stmt->close();
-    $conn->close();
+[$filename, $uploadError] = upload_image($_FILES['poster'] ?? null, POSTER_DIR, 'event');
+if ($uploadError) {
+    flash('error', $uploadError);
+    redirect('admin/events/create.php');
 }
-?>
+$filename = $filename ?? '';
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Action Status | MyEvent Admin</title>
-  <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/admin.css">
-  <style>
-      body { font-family: 'Inter', sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-      .status-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
-      .btn-home { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #0d6efd; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; }
-  </style>
-</head>
-<body>
-<div class="status-card">
-    <h2>Processing Result</h2>
-    <p><?php echo $message; ?></p>
-    <a href="manage.php" class="btn-home">Return to Manage Events</a>
-</div>
-</body>
-</html>
+$stmt = $conn->prepare(
+    'INSERT INTO events (event_name, description, category_id, contact_no, venue, event_date, event_time,
+                         mode, reg_close_date, max_participants, fee, remarks, poster_path, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+);
+$stmt->bind_param(
+    'ssissssssidssi',
+    $event_name, $description, $category_id, $contact_no, $venue, $event_date, $event_time,
+    $mode, $reg_close, $max_part, $fee, $remarks, $filename, $user_id
+);
+$stmt->execute();
+$stmt->close();
+
+flash('success', 'Event created successfully.');
+redirect('admin/events/manage.php');

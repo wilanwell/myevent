@@ -1,63 +1,123 @@
 <?php
 /**
- * MyEvent - Global Configuration File
- * ----------------------------------
- * Purpose: Defines paths, establishes database connection, and handles branding.
+ * MyEvent - Global Configuration
+ * ------------------------------
+ * Loads environment settings from .env, configures error handling,
+ * starts a hardened session, connects to the database and enforces
+ * CSRF protection on every POST request.
+ *
+ * Every page must include this file BEFORE producing any output.
  */
 
-// 1. Session Management: Start session to track logins across the system 
+define('APP_ROOT', __DIR__);
+
+/* --- 1. Environment (.env) ------------------------------------------ */
+(function () {
+    $file = APP_ROOT . '/.env';
+    if (!is_readable($file)) {
+        return;
+    }
+    foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
+            continue;
+        }
+        [$key, $value] = array_map('trim', explode('=', $line, 2));
+        $value = trim($value, "\"'");
+        if (getenv($key) === false) {
+            putenv("$key=$value");
+            $_ENV[$key] = $value;
+        }
+    }
+})();
+
+function env(string $key, $default = null)
+{
+    $value = getenv($key);
+    return $value === false ? $default : $value;
+}
+
+define('APP_NAME', env('APP_NAME', 'MyEvent'));
+define('DEBUG_MODE', filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN));
+
+/* --- 2. Error handling ---------------------------------------------- */
+error_reporting(E_ALL);
+ini_set('display_errors', DEBUG_MODE ? '1' : '0');
+ini_set('log_errors', '1');
+if (!is_dir(APP_ROOT . '/storage/logs')) {
+    @mkdir(APP_ROOT . '/storage/logs', 0755, true);
+}
+ini_set('error_log', APP_ROOT . '/storage/logs/php-error.log');
+
+require_once APP_ROOT . '/include/security.php';
+require_once APP_ROOT . '/include/helpers.php';
+
+set_exception_handler(function (Throwable $ex) {
+    error_log('[' . date('c') . '] ' . get_class($ex) . ': ' . $ex->getMessage()
+        . ' in ' . $ex->getFile() . ':' . $ex->getLine());
+    http_response_code(500);
+    $detail = DEBUG_MODE ? $ex->getMessage() . ' (' . basename($ex->getFile()) . ':' . $ex->getLine() . ')'
+                         : 'Something went wrong on our side. Please try again later.';
+    render_error_page('Unexpected error', $detail);
+});
+
+/* --- 3. URLs and paths ---------------------------------------------- */
+// APP_URL comes from configuration, never from the (spoofable) Host header.
+define('BASE_URL', rtrim(env('APP_URL', 'http://localhost/myevent'), '/') . '/');
+define('ROOT_PATH', APP_ROOT);
+define('IS_HTTPS', strncmp(BASE_URL, 'https://', 8) === 0);
+
+define('BASE_PATH_ASSETS', BASE_URL . 'assets');
+define('BASE_PATH_CSS', BASE_PATH_ASSETS . '/css/');
+define('BASE_PATH_IMG', BASE_PATH_ASSETS . '/img/');
+define('BASE_PATH_INCLUDE', BASE_URL . 'include/');
+
+/* --- 4. Security headers -------------------------------------------- */
+if (!headers_sent()) {
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+}
+
+/* --- 5. Hardened session -------------------------------------------- */
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    session_name('MYEVENTSESSID');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => IS_HTTPS,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
-// 2. Branding: Define the system name for global use 
-define('APP_NAME', 'MyEvent');
-
-// --- 3. URL and Path Settings ---
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' 
-             || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
-
-$host = $_SERVER['HTTP_HOST'];
-$projectFolder = '/myevent'; 
-
-// Base URL (for web access - links and images)
-define('BASE_URL', $protocol . $host . $projectFolder . '/');
-
-// Base Root Path (for server-side file access)
-define('ROOT_PATH', rtrim($_SERVER['DOCUMENT_ROOT'] . $projectFolder, '/'));
-
-// --- 4. Common Subpaths (URL-based) ---
-define('BASE_PATH_ASSETS', BASE_URL . '/assets');
-define('BASE_PATH_CSS', BASE_PATH_ASSETS . '/css/');
-define('BASE_PATH_IMG', BASE_PATH_ASSETS . '/img/');
-define('BASE_PATH_UPLOADS', BASE_URL . '/uploads/');
-define('BASE_PATH_INCLUDE', BASE_URL . '/include/');
-
-// --- 5. Database Connection ---
-$databaseHost = 'localhost';
-$databaseUsername = 'root';
-$databasePassword = '';
-$databaseName = 'myevent';
-
-// Initialize connection using MySQLi
-$conn = new mysqli($databaseHost, $databaseUsername, $databasePassword, $databaseName);
-
-// Check for connection errors
-if ($conn->connect_error) {
-    die("Database connection failed: " . $conn->connect_error);
+// Idle timeout: log the user out after inactivity.
+const SESSION_IDLE_SECONDS = 7200; // 2 hours
+if (!empty($_SESSION['loggedin'])) {
+    if (isset($_SESSION['last_activity']) && time() - $_SESSION['last_activity'] > SESSION_IDLE_SECONDS) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+    }
+    $_SESSION['last_activity'] = time();
 }
 
-// Set character set for language compatibility
-$conn->set_charset("utf8");
+/* --- 6. Database ---------------------------------------------------- */
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-// --- 6. Debug Mode (Enabled for Development) ---
-define('DEBUG_MODE', true); 
+$conn = new mysqli(
+    env('DB_HOST', 'localhost'),
+    env('DB_USERNAME', 'root'),
+    env('DB_PASSWORD', ''),
+    env('DB_DATABASE', 'myevent'),
+    (int) env('DB_PORT', 3306)
+);
+$conn->set_charset('utf8mb4');
 
-if (DEBUG_MODE) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-} else {
-    error_reporting(0);
-    ini_set('display_errors', 0);
+/* --- 7. CSRF: every POST must carry a valid token ------------------- */
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    csrf_verify();
 }
-?>

@@ -1,71 +1,77 @@
 <?php
 /**
- * MyEvent - User Registration Action
- * ----------------------------------
+ * MyEvent - Account registration handler
  */
+require_once __DIR__ . '/../config.php';
 
-// 1. Include global configuration
-require_once '../config.php';
+require_post();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // 2. Capture and Sanitize Form Data
-    $category     = $_POST['category'] ?? ''; 
-    $name         = trim($_POST['name'] ?? '');
-    $email        = trim($_POST['email'] ?? '');
-    $phone        = trim($_POST['phone'] ?? '');
-    $organization = trim($_POST['organization'] ?? '');
-    $password     = $_POST['password'] ?? '';
-    
-    // Convert recommendation array into a single string to save in the 'users' table
-    $recommendations = isset($_POST['event']) ? implode(", ", $_POST['event']) : "";
+$allowedCategories = ['Student', 'Staff', 'Public'];
+$allowedInterests  = ['workshop', 'seminar', 'competition', 'festival', 'sport', 'course'];
 
-    /**
-     * 3. Server-side Validation
-     */
-    if (empty($name) || empty($email) || empty($password) || empty($category) || empty($organization)) {
-        echo "<script>alert('Error: All required fields (including Organization) must be filled.'); window.history.back();</script>";
-        exit;
-    }
+$category     = (string) ($_POST['category'] ?? '');
+$name         = trim((string) ($_POST['name'] ?? ''));
+$email        = strtolower(trim((string) ($_POST['email'] ?? '')));
+$phone        = trim((string) ($_POST['phone'] ?? ''));
+$organization = trim((string) ($_POST['organization'] ?? ''));
+$password     = (string) ($_POST['password'] ?? '');
+$interests    = array_values(array_intersect((array) ($_POST['event'] ?? []), $allowedInterests));
 
-    if (empty($recommendations)) {
-        echo "<script>alert('Error: Please select at least one event recommendation.'); window.history.back();</script>";
-        exit;
-    }
+// Keep input (never the password) so the form can be refilled on error.
+$_SESSION['old_input'] = compact('category', 'name', 'email', 'phone', 'organization') + ['event' => $interests];
 
-    // 4. Check for existing email to prevent duplicate accounts
-    $check_email = "SELECT user_id FROM users WHERE email = ?";
-    $stmt = $conn->prepare($check_email);
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    if ($stmt->get_result()->num_rows > 0) {
-        echo "<script>alert('Error: This email is already registered.'); window.history.back();</script>";
-        exit;
-    }
-    $stmt->close();
-
-    // 5. Password Hashing (Security Requirement)
-    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-    /**
-     * 6. Database Integration
-     */
-    $sql = "INSERT INTO users (category, name, email, phone, organization, recommend_events, password, role) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'User')";
-    
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("sssssss", $category, $name, $email, $phone, $organization, $recommendations, $hashed_password);
-        
-        if ($stmt->execute()) {
-            echo "<script>alert('Registration Successful! Please login to MyEvent.'); window.location.href='login.php';</script>";
-        } else {
-            echo "Error: " . $stmt->error;
-        }
-        $stmt->close();
-    }
-    $conn->close();
-} else {
-    header("location: register.php");
-    exit;
+$errors = [];
+if ($name === '' || mb_strlen($name) > 255) {
+    $errors[] = 'Please enter your full name.';
 }
-?>
+if (!in_array($category, $allowedCategories, true)) {
+    $errors[] = 'Please choose a valid category.';
+}
+if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255) {
+    $errors[] = 'Please enter a valid email address.';
+}
+if ($phone !== '' && !preg_match('/^[0-9+\- ]{7,20}$/', $phone)) {
+    $errors[] = 'Please enter a valid phone number.';
+}
+if ($organization === '' || mb_strlen($organization) > 255) {
+    $errors[] = 'Please enter your organization or faculty.';
+}
+if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) {
+    $errors[] = 'Password must be at least 8 characters and include a letter and a number.';
+}
+if (!$interests) {
+    $errors[] = 'Please select at least one event recommendation.';
+}
+
+if ($errors) {
+    foreach ($errors as $msg) {
+        flash('error', $msg);
+    }
+    redirect('auth/register.php');
+}
+
+$stmt = $conn->prepare('SELECT 1 FROM users WHERE email = ? LIMIT 1');
+$stmt->bind_param('s', $email);
+$stmt->execute();
+$exists = (bool) $stmt->get_result()->fetch_row();
+$stmt->close();
+
+if ($exists) {
+    flash('error', 'This email is already registered. Please log in instead.');
+    redirect('auth/register.php');
+}
+
+$hash = password_hash($password, PASSWORD_DEFAULT);
+$recommendations = implode(', ', $interests);
+
+$stmt = $conn->prepare(
+    "INSERT INTO users (category, name, email, phone, organization, recommend_events, password, role)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'User')"
+);
+$stmt->bind_param('sssssss', $category, $name, $email, $phone, $organization, $recommendations, $hash);
+$stmt->execute();
+$stmt->close();
+
+unset($_SESSION['old_input']);
+flash('success', 'Registration successful! Please log in to MyEvent.');
+redirect('auth/login.php');

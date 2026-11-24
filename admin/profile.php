@@ -4,14 +4,9 @@
  */
 require_once '../config.php';
 
-// 1. Access Control (Admin Only)
-if (session_status() === PHP_SESSION_NONE) session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['role'] !== 'Admin') {
-    header("location: ../auth/login.php");
-    exit;
-}
+require_admin();
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = current_user_id();
 
 // 2. Fetch User Data
 $sql = "SELECT name, email, phone, role, organization, bio, profile_pic, category, recommend_events FROM users WHERE user_id = ?";
@@ -21,11 +16,11 @@ $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
 if (!$user) {
-    die("User profile not found.");
+    redirect('auth/logout.php');
 }
 
 // Correct path to images
-$profile_img = !empty($user['profile_pic']) ? "../assets/uploads/profiles/" . $user['profile_pic'] : null;
+$profile_img = avatar_url($user['profile_pic'] ?? null);
 $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recommend_events']) : [];
 ?>
 
@@ -79,19 +74,16 @@ $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recom
 <main class="main-content">
     <h1>Profile Settings</h1>
 
-    <?php if (isset($_GET['success'])): ?>
-        <div class="alert-success">
-            <i class="fas fa-check-circle"></i> Profile updated successfully!
-        </div>
-    <?php endif; ?>
+    <?php include __DIR__ . '/../include/flash.php'; ?>
 
     <div class="profile-card">
         <form action="profile_action.php" method="POST" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
             
             <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px;">
                 <div class="avatar-container" onclick="document.getElementById('profilePicInput').click();">
-                    <?php if ($profile_img && file_exists($profile_img)): ?>
-                        <img src="<?php echo $profile_img; ?>" class="profile-avatar" id="avatarPreview">
+                    <?php if ($profile_img): ?>
+                        <img src="<?= e($profile_img) ?>" class="profile-avatar" id="avatarPreview">
                     <?php else: ?>
                         <div class="default-avatar" id="avatarIcon"><i class="fas fa-user"></i></div>
                         <img src="" class="profile-avatar" id="avatarPreview" style="display:none;">
@@ -99,22 +91,22 @@ $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recom
                     <div class="camera-overlay"><i class="fas fa-camera"></i></div>
                 </div>
                 <div>
-                    <h3 style="margin: 0;"><?php echo htmlspecialchars($user['name']); ?></h3>
+                    <h3 style="margin: 0;"><?php echo e($user['name']); ?></h3>
                     <p style="color: #64748b; margin: 5px 0 0; font-size: 0.9rem;">Administrator Account</p>
                 </div>
             </div>
 
-            <input type="file" name="profile_pic" id="profilePicInput" style="display: none;" accept="image/*">
+            <input type="file" name="profile_pic" id="profilePicInput" style="display: none;" accept="image/jpeg,image/png,image/gif,image/webp">
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" class="form-input">
+                    <input type="text" name="name" value="<?php echo e($user['name']); ?>" class="form-input">
                 </div>
 
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="text" value="<?php echo htmlspecialchars($user['email']); ?>" readonly class="form-input form-input-readonly">
+                    <input type="text" value="<?php echo e($user['email']); ?>" readonly class="form-input form-input-readonly">
                 </div>
 
                 <fieldset style="grid-column: span 2; margin-bottom: 10px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; background: #f8fafc;">
@@ -132,12 +124,12 @@ $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recom
 
                 <div class="form-group">
                     <label>Phone Number</label>
-                    <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone']); ?>" class="form-input" required>
+                    <input type="text" name="phone" value="<?php echo e($user['phone']); ?>" class="form-input" required>
                 </div>
 
                 <div class="form-group">
                     <label>Organization</label>
-                    <input type="text" name="organization" value="<?php echo htmlspecialchars($user['organization']); ?>" class="form-input">
+                    <input type="text" name="organization" value="<?php echo e($user['organization']); ?>" class="form-input">
                 </div>
             </div>
 
@@ -147,7 +139,7 @@ $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recom
                 $options = ['workshop', 'seminar', 'competition', 'festival', 'sport', 'course'];
                 foreach($options as $opt): ?>
                     <label>
-                        <input type="checkbox" name="event[]" value="<?php echo $opt; ?>" 
+                        <input type="checkbox" name="event[]" value="<?= e($opt) ?>" 
                         <?php echo in_array($opt, $user_interests) ? 'checked' : ''; ?>> <?php echo ucfirst($opt); ?>
                     </label>
                 <?php endforeach; ?>
@@ -155,12 +147,14 @@ $user_interests = !empty($user['recommend_events']) ? explode(', ', $user['recom
 
             <div class="form-group">
                 <label>Bio</label>
-                <textarea name="bio" rows="3" class="form-input"><?php echo htmlspecialchars($user['bio']); ?></textarea>
+                <textarea name="bio" rows="3" class="form-input"><?php echo e($user['bio']); ?></textarea>
             </div>
 
             <div class="form-group" style="margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-                <label>New Password (Leave blank to keep current)</label>
-                <input type="password" name="new_password" placeholder="••••••••" class="form-input">
+                <label>Current Password (required to set a new password)</label>
+                <input type="password" name="current_password" placeholder="••••••••" class="form-input" autocomplete="current-password">
+                <label style="margin-top: 12px; display: block;">New Password (leave blank to keep current)</label>
+                <input type="password" name="new_password" placeholder="At least 8 characters" class="form-input" minlength="8" autocomplete="new-password">
             </div>
 
             <button type="submit" style="background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px;">

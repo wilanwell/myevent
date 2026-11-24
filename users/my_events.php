@@ -1,36 +1,45 @@
 <?php
-session_start();
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
-// 1. Access Control
-if (!isset($_SESSION['loggedin'])) {
-    header("location: ../auth/login.php");
-    exit;
-}
+require_login();
 
-// 2. Identify the User ID - Robust check
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
+$user_id = current_user_id();
 $role = $_SESSION['role'] ?? 'User';
-$msg = "";
 
-// --- HANDLE ACTIONS ---
+// --- HANDLE ACTIONS (POST, CSRF-checked in config.php) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $target_id = (int) ($_POST['event_id'] ?? 0);
 
-// 3. Delete Owned Event
-if (isset($_POST['delete_event']) && $role !== 'Public') {
-    $delete_id = intval($_POST['event_id']);
-    $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ? AND created_by = ?");
-    $stmt->bind_param("ii", $delete_id, $user_id);
-    if ($stmt->execute()) { $msg = "deleted"; } 
-    $stmt->close();
-}
+    // Delete an event the user owns (registrations cascade).
+    if (isset($_POST['delete_event'])) {
+        $stmt = $conn->prepare('SELECT poster_path FROM events WHERE event_id = ? AND created_by = ?');
+        $stmt->bind_param('ii', $target_id, $user_id);
+        $stmt->execute();
+        $owned = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-// 4. Unregister from Event
-if (isset($_POST['unregister_event'])) {
-    $leave_id = intval($_POST['event_id']);
-    $stmt = $conn->prepare("DELETE FROM registrations WHERE event_id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $leave_id, $user_id);
-    if ($stmt->execute()) { $msg = "unregistered"; } 
-    $stmt->close();
+        if ($owned) {
+            $stmt = $conn->prepare('DELETE FROM events WHERE event_id = ? AND created_by = ?');
+            $stmt->bind_param('ii', $target_id, $user_id);
+            $stmt->execute();
+            $stmt->close();
+            delete_upload($owned['poster_path'], POSTER_DIR);
+            flash('success', 'Event deleted.');
+        } else {
+            flash('error', 'You can only delete events you organise.');
+        }
+    }
+
+    // Leave an event the user registered for.
+    if (isset($_POST['unregister_event'])) {
+        $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ? AND user_id = ?');
+        $stmt->bind_param('ii', $target_id, $user_id);
+        $stmt->execute();
+        $stmt->close();
+        flash('success', 'Your registration has been cancelled.');
+    }
+
+    redirect('users/my_events.php');
 }
 
 // --- FETCH DATA ---
@@ -108,6 +117,7 @@ $stmt->close();
     </nav>
 
     <div class="main-content">
+        <?php include ROOT_PATH . '/include/flash.php'; ?>
         <div class="header-row">
             <h2>My Events Dashboard</h2>
             <?php if($role !== 'Public'): ?>
@@ -115,8 +125,6 @@ $stmt->close();
             <?php endif; ?>
         </div>
         
-        <?php if($msg == 'deleted') echo "<div style='background:#fee2e2; color:#991b1b; padding:15px; border-radius:8px; margin-bottom:20px;'>Event deleted successfully.</div>"; ?>
-        <?php if($msg == 'unregistered') echo "<div style='background:#fef9c3; color:#854d0e; padding:15px; border-radius:8px; margin-bottom:20px;'>Unregistered from event successfully.</div>"; ?>
 
         <h3><i class="fa-solid fa-pen-ruler"></i> Events I Organized</h3>
         <div class="table-card">
@@ -130,28 +138,25 @@ $stmt->close();
                     <tbody>
                         <?php while($row = $result_created->fetch_assoc()): ?>
                             <tr>
-                                <td><?= $row['event_id']; ?></td>
+                                <td><?= e($row['event_id']) ?></td>
                                 <td>
-                                    <?php if(!empty($row['poster_path']) && file_exists('../uploads/'.$row['poster_path'])): ?>
-                                        <img src="../uploads/<?= $row['poster_path']; ?>" class="poster-thumb">
-                                    <?php else: ?>
-                                        <div style="width:45px; height:45px; background:#f1f5f9; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="fa-solid fa-image"></i></div>
-                                    <?php endif; ?>
+                                    <img src="<?= e(poster_url($row['poster_path'])) ?>" class="poster-thumb" alt="<?= e($row['event_name'] ?? 'Event poster') ?>" loading="lazy">
                                 </td>
-                                <td><strong><?= htmlspecialchars($row['event_name']); ?></strong><br><small><?= date('M d, Y', strtotime($row['event_date'])); ?></small></td>
-                                <td><?= htmlspecialchars($row['categoryName'] ?? 'General'); ?></td>
-                                <td><?= $row['visibility']; ?></td>
-                                <td><?= $row['current_reg']; ?> / <?= ($row['max_participants'] > 0) ? $row['max_participants'] : '∞'; ?></td>
+                                <td><strong><?= e($row['event_name']); ?></strong><br><small><?= date('M d, Y', strtotime($row['event_date'])); ?></small></td>
+                                <td><?= e($row['categoryName'] ?? 'General'); ?></td>
+                                <td><?= e($row['visibility']) ?></td>
+                                <td><?= e($row['current_reg']) ?> / <?= ($row['max_participants'] > 0) ? $row['max_participants'] : '∞'; ?></td>
                                 <td>
                                     <div class="action-btns">
-                                        <a href="edit_event.php?id=<?= $row['event_id'] ?>" style="color:#2563eb;" title="Edit Event">
+                                        <a href="edit_event.php?id=<?= e($row['event_id']) ?>" style="color:#2563eb;" title="Edit Event">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </a>
-                                        <a href="manage_participants.php?event_id=<?= $row['event_id'] ?>" style="color:#059669;" title="Manage Participants">
+                                        <a href="manage_participants.php?event_id=<?= e($row['event_id']) ?>" style="color:#059669;" title="Manage Participants">
                                             <i class="fa-solid fa-users-viewfinder"></i>
                                         </a>
                                         <form method="POST" onsubmit="return confirm('Permanently delete this event?');">
-                                            <input type="hidden" name="event_id" value="<?= $row['event_id'] ?>">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
                                             <button type="submit" name="delete_event" style="border:none; background:none; color:#dc2626; cursor:pointer; padding:0; font-size: 1rem;">
                                                 <i class="fa-solid fa-trash-can"></i>
                                             </button>
@@ -179,17 +184,13 @@ $stmt->close();
                     <tbody>
                         <?php while($row = $result_joined->fetch_assoc()): ?>
                             <tr>
-                                <td><?= $row['event_id']; ?></td>
+                                <td><?= e($row['event_id']) ?></td>
                                 <td>
-                                    <?php if(!empty($row['poster_path']) && file_exists('../uploads/'.$row['poster_path'])): ?>
-                                        <img src="../uploads/<?= $row['poster_path']; ?>" class="poster-thumb">
-                                    <?php else: ?>
-                                        <div style="width:45px; height:45px; background:#f1f5f9; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="fa-solid fa-image"></i></div>
-                                    <?php endif; ?>
+                                    <img src="<?= e(poster_url($row['poster_path'])) ?>" class="poster-thumb" alt="<?= e($row['event_name'] ?? 'Event poster') ?>" loading="lazy">
                                 </td>
-                                <td><strong><?= htmlspecialchars($row['event_name']); ?></strong></td>
-                                <td><?= htmlspecialchars($row['organizer_name'] ?? 'Admin'); ?></td>
-                                <td><?= htmlspecialchars($row['categoryName'] ?? 'General'); ?></td>
+                                <td><strong><?= e($row['event_name']); ?></strong></td>
+                                <td><?= e($row['organizer_name'] ?? 'Admin'); ?></td>
+                                <td><?= e($row['categoryName'] ?? 'General'); ?></td>
                                 <td><?= date('M d, Y', strtotime($row['event_date'])); ?></td>
                                 <td>
                                     <?php 
@@ -199,7 +200,7 @@ $stmt->close();
                                 </td>
                                 <td>
                                     <?php if($row['approval_status'] == 'Approved'): ?>
-                                        <a href="generate_ticket.php?event_id=<?= $row['event_id']; ?>" target="_blank" style="color: #4f46e5; text-decoration:none; font-weight:bold;">
+                                        <a href="generate_ticket.php?event_id=<?= e($row['event_id']) ?>" target="_blank" style="color: #4f46e5; text-decoration:none; font-weight:bold;">
                                             <i class="fa-solid fa-file-pdf"></i> Get Ticket
                                         </a>
                                     <?php else: ?>
@@ -208,7 +209,8 @@ $stmt->close();
                                 </td>
                                 <td>
                                     <form method="POST" onsubmit="return confirm('Unregister?');">
-                                        <input type="hidden" name="event_id" value="<?= $row['event_id'] ?>">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
                                         <button type="submit" name="unregister_event" style="border:none; background:none; color:#dc2626; cursor:pointer; font-weight:600; padding:0;">Unregister</button>
                                     </form>
                                 </td>

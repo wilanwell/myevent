@@ -16,8 +16,8 @@ include_once __DIR__ . '/../config.php';
         
         <?php 
         // 1. Session Control: Check if user is logged in
-        if(isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true): 
-            $u_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+        if(is_logged_in()): 
+            $u_id = current_user_id();
 
             // 2. FETCH USER PROFILE PIC
             $u_sql = "SELECT profile_pic FROM users WHERE user_id = ?";
@@ -32,7 +32,7 @@ include_once __DIR__ . '/../config.php';
                     <i class="fa-solid fa-bell" style="font-size: 1.3rem;"></i>
                     <?php
                     // Count unread notifications
-                    $notif_res = $conn->query("SELECT COUNT(*) as unread FROM notifications WHERE user_id = $u_id AND is_read = 0");
+                    $notif_res = $conn->query("SELECT COUNT(*) as unread FROM notifications WHERE user_id = " . (int) $u_id . " AND is_read = 0");
                     $unread = ($notif_res) ? $notif_res->fetch_assoc()['unread'] : 0;
                     
                     if ($unread > 0): ?>
@@ -45,8 +45,8 @@ include_once __DIR__ . '/../config.php';
 
             <div style="margin-right: 20px;">
                 <a href="<?php echo BASE_URL; ?>users/profile.php">
-                    <?php if(!empty($p_pic) && file_exists(__DIR__ . '/../assets/uploads/profiles/' . $p_pic)): ?>
-                        <img src="<?php echo BASE_URL; ?>assets/uploads/profiles/<?php echo $p_pic; ?>" 
+                    <?php if ($p_avatar = avatar_url($p_pic)): ?>
+                        <img src="<?= e($p_avatar) ?>" alt="Your profile picture" 
                              style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #4f46e5;">
                     <?php else: ?>
                         <div style="width: 35px; height: 35px; background: #4f46e5; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">

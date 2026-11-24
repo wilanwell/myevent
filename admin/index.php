@@ -1,22 +1,11 @@
 <?php 
 // 1. Start Session & Include Config
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 require_once '../config.php'; 
 
 // 2. SECURITY CHECK
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("Location: ../auth/login.php");
-    exit;
-}
+require_admin();
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../users/dashboard.php");
-    exit;
-}
-
-$admin_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$admin_id = current_user_id();
 
 /**
  * 3. HANDLE NOTIFICATIONS & STATUS UPDATES
@@ -32,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $info_query->bind_param("i", $reg_id);
         $info_query->execute();
         $info = $info_query->get_result()->fetch_assoc();
-        $target_student = $info['user_id'];
-        $event_name = $info['event_name'];
+        $target_student = $info['user_id'] ?? null;
+        $event_name = $info['event_name'] ?? '';
 
         if ($action == 'approve') {
             $sql = "UPDATE registrations SET approval_status='Approved' WHERE reg_id=?";
@@ -43,13 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $notif_message = "❌ Your registration for <strong>$event_name</strong> was Rejected.";
         }
 
-        if ($sql != "") {
+        if ($sql != "" && $info) {
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("i", $reg_id);
             if ($stmt->execute() && !empty($notif_message)) {
                 $ins_notif = $conn->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
                 $ins_notif->bind_param("is", $target_student, $notif_message);
                 $ins_notif->execute();
+                flash('success', 'Registration ' . ($action === 'approve' ? 'approved' : 'rejected') . '.');
             }
         }
     }
@@ -60,7 +50,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->bind_param("ii", $delete_id, $admin_id);
         $stmt->execute();
         $stmt->close();
+        flash('success', 'Event deleted.');
     }
+
+    // Post/Redirect/Get: avoid re-submitting the form on refresh.
+    redirect('admin/index.php');
 }
 
 /**
@@ -138,26 +132,27 @@ $my_events = $stmt->get_result();
   </nav>
 
   <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
       <div class="header">
           <h1>Admin Dashboard</h1>
-          <p style="color: #64748b;">Welcome, <?= htmlspecialchars($_SESSION['name'] ?? 'Administrator') ?></p>
+          <p style="color: #64748b;">Welcome, <?= e($_SESSION['name'] ?? 'Administrator') ?></p>
       </div>
 
       <div class="stats-grid">
           <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Students</p><div class="number"><?= $total_students ?></div></div>
+              <div><p style="color:#64748b; margin:0;">Total Students</p><div class="number"><?= e($total_students) ?></div></div>
               <i class="fas fa-user-graduate fa-2x" style="color:#4f46e5; opacity:0.2;"></i>
           </div>
           <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Staff</p><div class="number"><?= $total_staff ?></div></div>
+              <div><p style="color:#64748b; margin:0;">Total Staff</p><div class="number"><?= e($total_staff) ?></div></div>
               <i class="fas fa-user-tie fa-2x" style="color:#6366f1; opacity:0.2;"></i>
           </div>
           <div class="card">
-              <div><p style="color:#64748b; margin:0;">Active Events</p><div class="number"><?= $total_events ?></div></div>
+              <div><p style="color:#64748b; margin:0;">Active Events</p><div class="number"><?= e($total_events) ?></div></div>
               <i class="fas fa-calendar-check fa-2x" style="color:#10b981; opacity:0.2;"></i>
           </div>
           <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Registrations</p><div class="number"><?= $total_participants ?></div></div>
+              <div><p style="color:#64748b; margin:0;">Total Registrations</p><div class="number"><?= e($total_participants) ?></div></div>
               <i class="fas fa-users fa-2x" style="color:#f59e0b; opacity:0.2;"></i>
           </div>
       </div>
@@ -182,27 +177,24 @@ $my_events = $stmt->get_result();
                   <tbody>
                       <?php while($row = $my_events->fetch_assoc()): ?>
                           <tr>
-                              <td>#<?= $row['event_id']; ?></td>
+                              <td>#<?= e($row['event_id']) ?></td>
                               <td>
-                                <?php if(!empty($row['poster_path']) && file_exists("../uploads/" . $row['poster_path'])): ?>
-                                    <img src="../uploads/<?= $row['poster_path']; ?>" class="poster-img">
-                                <?php else: ?>
-                                    <div style="width:50px; height:50px; background:#e2e8f0; display:flex; align-items:center; justify-content:center; border-radius:4px;"><i class="fa-solid fa-image text-muted"></i></div>
-                                <?php endif; ?>
+                                <img src="<?= e(poster_url($row['poster_path'])) ?>" class="poster-img" alt="<?= e($row['event_name'] ?? 'Event poster') ?>" loading="lazy">
                               </td>
-                              <td><strong><?= htmlspecialchars($row['event_name']); ?></strong></td>
-                              <td><?= htmlspecialchars($row['categoryName'] ?? 'Uncategorized'); ?></td>
+                              <td><strong><?= e($row['event_name']); ?></strong></td>
+                              <td><?= e($row['categoryName'] ?? 'Uncategorized'); ?></td>
                               <td><?= date('M d, Y', strtotime($row['event_date'])); ?></td>
-                              <td><?= htmlspecialchars($row['venue']); ?></td>
-                              <td><span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;"><?= htmlspecialchars($row['mode']); ?></span></td>
+                              <td><?= e($row['venue']); ?></td>
+                              <td><span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;"><?= e($row['mode']); ?></span></td>
                               
-                              <td><?= $row['current_reg']; ?> / <?= ($row['max_participants'] > 0) ? $row['max_participants'] : '∞'; ?></td>
+                              <td><?= e($row['current_reg']) ?> / <?= ($row['max_participants'] > 0) ? $row['max_participants'] : '∞'; ?></td>
                               
                               <td style="display: flex; gap: 8px;">
-                                  <a href="organizer/manage_participants.php?event_id=<?= $row['event_id']; ?>" class="btn-manage">Manage</a>
+                                  <a href="organizer/manage_participants.php?event_id=<?= e($row['event_id']) ?>" class="btn-manage">Manage</a>
                                   
                                   <form method="POST" onsubmit="return confirm('Permanently delete this event?');" style="display:inline;">
-                                      <input type="hidden" name="delete_event_id" value="<?= $row['event_id']; ?>">
+                                      <?= csrf_field() ?>
+                                      <input type="hidden" name="delete_event_id" value="<?= e($row['event_id']) ?>">
                                       <button type="submit" class="btn-delete">Delete</button>
                                   </form>
                               </td>

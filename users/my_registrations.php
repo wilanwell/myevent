@@ -2,14 +2,10 @@
 
 require_once '../config.php';
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
-// Access Control
-if (!isset($_SESSION['loggedin'])) { header("location: ../auth/login.php"); exit; }
+require_login();
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = current_user_id();
 $user_role = $_SESSION['role'] ?? 'User';
 
 // Fetch joined events with specific details: date, venue, mode, and status
@@ -79,6 +75,7 @@ $result = $stmt->get_result();
     </aside>
 
     <div class="main-content">
+        <?php include ROOT_PATH . '/include/flash.php'; ?>
         <h2 style="color: #1e293b;">My Registered Events</h2>
         <p style="color: #64748b; margin-bottom: 30px;">Track your status and manage your attendance list.</p>
 
@@ -86,22 +83,23 @@ $result = $stmt->get_result();
             <?php while($row = $result->fetch_assoc()): ?>
                 <div class="reg-card">
                     <div style="flex: 1;">
-                        <span class="mode-tag"><i class="fas fa-vr-cardboard"></i> <?= $row['mode'] ?></span>
-                        <h3 style="margin: 10px 0 5px 0; color: #1e293b;"><?= htmlspecialchars($row['event_name']) ?></h3>
+                        <span class="mode-tag"><i class="fas fa-vr-cardboard"></i> <?= e($row['mode']) ?></span>
+                        <h3 style="margin: 10px 0 5px 0; color: #1e293b;"><?= e($row['event_name']) ?></h3>
                         
                         <div class="event-info-grid">
                             <span><i class="fas fa-calendar-alt"></i> <?= date('M d, Y', strtotime($row['event_date'])) ?></span>
-                            <span><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($row['venue']) ?></span>
+                            <span><i class="fas fa-map-marker-alt"></i> <?= e($row['venue']) ?></span>
                         </div>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 25px;">
-                        <span class="status-badge status-<?= $row['approval_status'] ?>">
-                            <?= $row['approval_status'] ?>
+                        <span class="status-badge status-<?= e($row['approval_status']) ?>">
+                            <?= e($row['approval_status']) ?>
                         </span>
                         
                         <form action="my_events.php" method="POST" onsubmit="return confirm('Cancel this registration? This spot will be released.');">
-                            <input type="hidden" name="event_id" value="<?= $row['event_id'] ?>">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
                             <button type="submit" name="unregister_event" class="btn-cancel">
                                 <i class="fas fa-times-circle"></i> Cancel Spot
                             </button>

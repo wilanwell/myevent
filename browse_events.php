@@ -2,9 +2,6 @@
 require_once 'config.php';
 
 // Fix for the session notice
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
 // 1. Get the category ID from the dropdown selection
 $cat_filter = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
@@ -34,7 +31,7 @@ $result = $conn->query($sql);
         .btn-filter { background: #4f46e5; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
         .event-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid #4f46e5; }
-        .btn-register { display: block; background: #4f46e5; color: white; text-align: center; padding: 12px; border-radius: 6px; text-decoration: none; margin-top: 20px; font-weight: bold; }
+        .btn-register { display: block; width: 100%; border: none; cursor: pointer; font-size: 1rem; background: #4f46e5; color: white; text-align: center; padding: 12px; border-radius: 6px; text-decoration: none; margin-top: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -65,12 +62,16 @@ $result = $conn->query($sql);
             <?php if ($result && $result->num_rows > 0): ?>
                 <?php while($row = $result->fetch_assoc()): ?>
                     <div class="event-card">
-                        <h3><?= htmlspecialchars($row['event_name']) ?></h3>
+                        <h3><?= e($row['event_name']) ?></h3>
                         <p style="color: #64748b;"><i class="fas fa-calendar"></i> <?= date('M d, Y', strtotime($row['event_date'])) ?></p>
-                        <p style="color: #64748b;"><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($row['venue']) ?></p>
-                        <p style="color: #64748b;"><i class="fas fa-tag"></i> Fee: RM <?= htmlspecialchars($row['fee']) ?></p>
+                        <p style="color: #64748b;"><i class="fas fa-map-marker-alt"></i> <?= e($row['venue']) ?></p>
+                        <p style="color: #64748b;"><i class="fas fa-tag"></i> Fee: <?= e(format_fee($row['fee'])) ?></p>
                         
-                        <a href="register_action.php?event_id=<?= $row['event_id'] ?>" class="btn-register">Register for Event</a>
+                        <form action="users/register_event.php" method="POST">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="event_id" value="<?= (int) $row['event_id'] ?>">
+                            <button type="submit" class="btn-register">Register for Event</button>
+                        </form>
                     </div>
                 <?php endwhile; ?>
             <?php else: ?>

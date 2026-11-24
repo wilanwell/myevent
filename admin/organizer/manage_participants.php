@@ -1,19 +1,14 @@
 <?php
 // FILE: admin/organizer/manage_participants.php
-session_start();
 
 // 1. Include Config
 require_once __DIR__ . '/../../config.php'; 
 
-// 2. SECURITY: Ensure User is Admin
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../../auth/login.php");
-    exit;
-}
+require_admin();
 
 // 3. GET EVENT ID
-if (!isset($_GET['event_id']) || empty($_GET['event_id'])) {
-    die("Error: Event ID is missing.");
+if (empty($_GET['event_id'])) {
+    redirect('admin/index.php');
 }
 $event_id = intval($_GET['event_id']);
 
@@ -26,8 +21,8 @@ $event_name = $evt_stmt->get_result()->fetch_assoc()['event_name'] ?? "Unknown_E
 
 // 5. HANDLE CSV DOWNLOAD (Using attendance_status)
 if (isset($_GET['download']) && $_GET['download'] === 'csv') {
-    $filename = "Participants_" . str_replace(' ', '_', $event_name) . ".csv";
-    header('Content-Type: text/csv');
+    $filename = safe_filename('Participants_' . $event_name);
+    header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     $output = fopen('php://output', 'w');
     fputcsv($output, ['Reg ID', 'Name', 'Email', 'Category', 'Status', 'Attendance']);
@@ -36,32 +31,31 @@ if (isset($_GET['download']) && $_GET['download'] === 'csv') {
     $query->bind_param("i", $event_id);
     $query->execute();
     $result = $query->get_result();
-    while ($row = $result->fetch_assoc()) { fputcsv($output, $row); }
+    while ($row = $result->fetch_assoc()) { fputcsv($output, csv_row($row)); }
     fclose($output);
     exit;
 }
 
 // 6. HANDLE ACTIONS (Approve / Reject / Attendance)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    $registration_id = intval($_POST['participant_id']);
-    $action = $_POST['action'];
+    $registration_id = (int) ($_POST['participant_id'] ?? 0);
+    $action = (string) $_POST['action'];
 
     if ($action === 'approve') {
-        $stmt = $conn->prepare("UPDATE registrations SET approval_status = 'Approved' WHERE reg_id = ?");
+        $stmt = $conn->prepare("UPDATE registrations SET approval_status = 'Approved' WHERE reg_id = ? AND event_id = ?");
     } elseif ($action === 'reject') {
-        $stmt = $conn->prepare("UPDATE registrations SET approval_status = 'Rejected' WHERE reg_id = ?");
+        $stmt = $conn->prepare("UPDATE registrations SET approval_status = 'Rejected' WHERE reg_id = ? AND event_id = ?");
     } elseif ($action === 'mark_present') {
-        $stmt = $conn->prepare("UPDATE registrations SET attendance_status = 'Present' WHERE reg_id = ?");
+        $stmt = $conn->prepare("UPDATE registrations SET attendance_status = 'Present' WHERE reg_id = ? AND event_id = ?");
     } elseif ($action === 'mark_absent') {
-        $stmt = $conn->prepare("UPDATE registrations SET attendance_status = 'Absent' WHERE reg_id = ?");
+        $stmt = $conn->prepare("UPDATE registrations SET attendance_status = 'Absent' WHERE reg_id = ? AND event_id = ?");
     }
     
     if (isset($stmt)) {
-        $stmt->bind_param("i", $registration_id);
+        $stmt->bind_param("ii", $registration_id, $event_id);
         $stmt->execute();
     }
-    header("Location: manage_participants.php?event_id=" . $event_id);
-    exit;
+    redirect('admin/organizer/manage_participants.php?event_id=' . $event_id);
 }
 
 // 7. FETCH PARTICIPANTS
@@ -132,13 +126,14 @@ $participants = $stmt->get_result();
     </nav>
 
     <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
             <div>
                 <h1 style="margin: 0; font-size: 1.8rem;">Participant Management</h1>
-                <p style="color: #64748b; margin-top: 5px;">Event: <strong><?= htmlspecialchars($event_name); ?></strong></p>
+                <p style="color: #64748b; margin-top: 5px;">Event: <strong><?= e($event_name); ?></strong></p>
             </div>
             <div class="download-section" style="display: flex; gap: 12px;">
-                <a href="?event_id=<?= $event_id ?>&download=csv" class="btn-download">
+                <a href="?event_id=<?= e($event_id) ?>&download=csv" class="btn-download">
                     <i class="fas fa-file-csv" style="color: #059669;"></i> Export CSV
                 </a>
                 <button onclick="window.print();" class="btn-download">
@@ -162,11 +157,11 @@ $participants = $stmt->get_result();
                         <?php while($row = $participants->fetch_assoc()): ?>
                             <tr>
                                 <td>
-                                    <div style="font-weight: 700; color: #1e293b;"><?= htmlspecialchars($row['name']); ?></div>
-                                    <div style="font-size: 0.85rem; color: #64748b;"><?= htmlspecialchars($row['email']); ?></div>
+                                    <div style="font-weight: 700; color: #1e293b;"><?= e($row['name']); ?></div>
+                                    <div style="font-size: 0.85rem; color: #64748b;"><?= e($row['email']); ?></div>
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge badge-<?= $row['approval_status']; ?>"><?= $row['approval_status']; ?></span>
+                                    <span class="badge badge-<?= e($row['approval_status']) ?>"><?= e($row['approval_status']) ?></span>
                                 </td>
                                 <td class="text-center">
                                     <span class="badge badge-<?= $row['attendance_status'] ?: 'Absent'; ?>">
@@ -176,7 +171,8 @@ $participants = $stmt->get_result();
                                 <td class="download-section">
                                     <div class="action-flex-container">
                                         <form method="POST" style="margin:0;">
-                                            <input type="hidden" name="participant_id" value="<?= $row['reg_id']; ?>">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="participant_id" value="<?= e($row['reg_id']) ?>">
                                             <?php if($row['attendance_status'] !== 'Present'): ?>
                                                 <button type="submit" name="action" value="mark_present" class="btn-action" style="background: #4f46e5;">Present</button>
                                             <?php else: ?>
@@ -185,7 +181,8 @@ $participants = $stmt->get_result();
                                         </form>
 
                                         <form method="POST" style="margin:0;">
-                                            <input type="hidden" name="participant_id" value="<?= $row['reg_id']; ?>">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="participant_id" value="<?= e($row['reg_id']) ?>">
                                             <?php if($row['approval_status'] !== 'Approved'): ?>
                                                 <button type="submit" name="action" value="approve" class="btn-action" style="background: #10b981;">Approve</button>
                                             <?php endif; ?>

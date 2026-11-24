@@ -1,61 +1,38 @@
 <?php
-session_start();
 require_once '../config.php';
 
-// 1. Access Control: Ensure only logged-in users can create events
-if (!isset($_SESSION['loggedin'])) { 
-    header("location: ../auth/login.php"); 
-    exit; 
-}
+require_login();
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
+$user_id = current_user_id();
 
 $error = "";
 $success = "";
 
-// File Upload Handler
+// File upload: validated by content type, random name (see include/security.php)
 function handleFileUpload($fileArray) {
-    if (!isset($fileArray) || $fileArray['error'] !== UPLOAD_ERR_OK) return [false, null];
-    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
-    $fileExtension = strtolower(pathinfo($fileArray['name'], PATHINFO_EXTENSION));
-
-    if (!in_array($fileExtension, $allowedExtensions)) {
-        return [false, "Error: Only JPG, JPEG, PNG, and GIF allowed."];
-    }
-    if ($fileArray['size'] > 10 * 1024 * 1024) {
-        return [false, "Error: File size must be less than 10MB."];
-    }
-
-    $newFileName = uniqid('event_') . '.' . $fileExtension;
-    $uploadDestination = '../uploads/' . $newFileName;
-    if (!is_dir('../uploads/')) { mkdir('../uploads/', 0777, true); }
-
-    if (move_uploaded_file($fileArray['tmp_name'], $uploadDestination)) {
-        return [true, $newFileName];
-    } else {
-        return [false, "Error: Upload failed. Check folder permissions."];
-    }
+    [$name, $err] = upload_image($fileArray, POSTER_DIR, 'event', 5 * 1024 * 1024);
+    return $err ? [false, $err] : [$name !== null, $name];
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // 3. Collect Data based on Requirements
     $event_name   = trim($_POST['title']);
     $description  = trim($_POST['description']);
-    $category_id  = $_POST['category_id']; 
+    $category_id  = (int) ($_POST['category_id'] ?? 0); 
     $contact_no   = trim($_POST['contact_no']); 
     $venue        = trim($_POST['location']);
     $event_date   = $_POST['date'];
     $event_time   = $_POST['time'];
-    $mode         = $_POST['mode']; // Physical, online, hybrid
+    $mode         = (string) ($_POST['mode'] ?? '');
     $reg_close    = $_POST['reg_close_date'];
     $max_part     = !empty($_POST['max_participants']) ? intval($_POST['max_participants']) : 0;
-    $fee          = trim($_POST['fee']); // Free or amount
+    $fee          = parse_fee($_POST['fee'] ?? 0); // "Free" or an amount -> number
     $remarks      = trim($_POST['remarks']);
-    $visibility   = $_POST['visibility']; // Public or Private
-    $poster_path  = "default_banner.jpg"; 
+    $visibility   = in_array($_POST['visibility'] ?? '', ['Public', 'Private'], true) ? $_POST['visibility'] : 'Public';
+    $poster_path  = null; // no poster -> placeholder via poster_url()
 
     // Validation for Mandatory Fields
-    if (empty($event_name) || empty($event_date) || empty($venue) || empty($category_id) || empty($user_id)) {
+    if (!in_array($mode, ['Physical', 'Online', 'Hybrid'], true) || empty($event_name) || empty($event_date) || empty($venue) || empty($category_id) || empty($user_id)) {
         $error = "Please fill in all required fields. Session error: please re-login if ID is missing.";
     } else {
         if (isset($_FILES['poster']) && $_FILES['poster']['size'] > 0) {
@@ -77,10 +54,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 );
                 
                 if ($stmt->execute()) {
-                    header("location: my_events.php?msg=created");
-                    exit;
+                    flash('success', 'Event created successfully.');
+                    redirect('users/my_events.php');
                 } else {
-                    $error = "Database Error: " . $stmt->error;
+                    $error = "Could not save the event. Please try again.";
                 }
                 $stmt->close();
             }
@@ -113,9 +90,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body>
     <div class="form-card">
         <h2><i class="fas fa-plus-circle"></i> Create New Event</h2>
-        <?php if($error) echo "<div class='alert'>$error</div>"; ?>
+        <?php if ($error): ?><div class="alert"><?= e($error) ?></div><?php endif; ?>
 
         <form action="" method="POST" enctype="multipart/form-data">
+            <?= csrf_field() ?>
             <div class="form-grid">
                 <div class="form-group"><label>Event Name <span class="required">*</span></label><input type="text" name="title" required></div>
                 <div class="form-group">

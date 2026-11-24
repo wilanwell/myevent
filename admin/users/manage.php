@@ -1,13 +1,8 @@
 <?php
 // 1. Start Session & Include Config
-session_start();
 require_once '../../config.php'; 
 
-// 2. SECURITY CHECK
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../../auth/login.php");
-    exit;
-}
+require_admin();
 
 // 3. HANDLE CSV DOWNLOAD
 if (isset($_POST['download_csv'])) {
@@ -22,7 +17,7 @@ if (isset($_POST['download_csv'])) {
     $rows = $conn->query($query);
     
     while ($row = $rows->fetch_assoc()) {
-        fputcsv($output, $row);
+        fputcsv($output, csv_row($row));
     }
     fclose($output);
     exit;
@@ -85,12 +80,14 @@ $cat_result = $conn->query($cat_query);
 </aside>
 
 <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
     <div class="table-card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h2><i class="fas fa-users"></i> Manage Registered Users</h2>
             
             <div class="btn-group">
                 <form method="POST" style="margin:0;">
+                    <?= csrf_field() ?>
                     <button type="submit" name="download_csv" class="btn-action btn-csv">
                         <i class="fas fa-file-csv"></i> CSV
                     </button>
@@ -108,7 +105,7 @@ $cat_result = $conn->query($cat_query);
             <select id="categoryFilter" class="filter-select">
                 <option value="">All Categories</option>
                 <?php while($cat = $cat_result->fetch_assoc()): ?>
-                    <option value="<?= htmlspecialchars($cat['category']) ?>"><?= htmlspecialchars($cat['category']) ?></option>
+                    <option value="<?= e($cat['category']) ?>"><?= e($cat['category']) ?></option>
                 <?php endwhile; ?>
             </select>
         </div>
@@ -128,19 +125,23 @@ $cat_result = $conn->query($cat_query);
             <tbody>
                 <?php while($user = $result->fetch_assoc()): ?>
                 <tr class="user-row">
-                    <td><?php echo $user['user_id']; ?></td>
-                    <td class="user-name"><strong><?php echo htmlspecialchars($user['name']); ?></strong></td>
-                    <td class="user-email"><?php echo htmlspecialchars($user['email']); ?></td>
-                    <td class="user-category"><?php echo htmlspecialchars($user['category']); ?></td>
+                    <td><?= e($user['user_id']) ?></td>
+                    <td class="user-name"><strong><?php echo e($user['name']); ?></strong></td>
+                    <td class="user-email"><?php echo e($user['email']); ?></td>
+                    <td class="user-category"><?php echo e($user['category']); ?></td>
                     <td class="user-role">
                         <span class="badge badge-<?php echo strtolower($user['role']); ?>">
-                            <?php echo $user['role']; ?>
+                            <?= e($user['role']) ?>
                         </span>
                     </td>
                     <td><?php echo date('Y-m-d', strtotime($user['created_at'])); ?></td>
                     <td class="actions-col">
-                        <a href="edit.php?id=<?php echo $user['user_id']; ?>" style="color: var(--warning); margin-right: 10px;"><i class="fas fa-edit"></i></a>
-                        <a href="delete.php?id=<?php echo $user['user_id']; ?>" style="color: var(--danger);" onclick="return confirm('Delete user?');"><i class="fas fa-trash"></i></a>
+                        <a href="edit.php?id=<?= e($user['user_id']) ?>" style="color: var(--warning); margin-right: 10px;"><i class="fas fa-edit"></i></a>
+                        <form action="delete.php" method="POST" style="display:inline;" onsubmit="return confirm('Delete this user permanently?');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int) $user['user_id'] ?>">
+                            <button type="submit" style="color: var(--danger); background:none; border:none; cursor:pointer; padding:0;" aria-label="Delete user"><i class="fas fa-trash"></i></button>
+                        </form>
                     </td>
                 </tr>
                 <?php endwhile; ?>

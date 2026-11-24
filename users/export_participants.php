@@ -2,10 +2,10 @@
 
 require_once '../config.php';
 
-if (!isset($_SESSION['loggedin'])) { exit; }
+require_login();
 
-$event_id = intval($_GET['event_id']);
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$event_id = (int) ($_GET['event_id'] ?? 0);
+$user_id = current_user_id();
 
 // Verify Ownership
 $v_stmt = $conn->prepare("SELECT event_name FROM events WHERE event_id = ? AND created_by = ?");
@@ -18,7 +18,7 @@ $event_name = $event_res->fetch_assoc()['event_name'];
 
 // Set CSV Headers
 header('Content-Type: text/csv; charset=utf-8');
-header('Content-Disposition: attachment; filename=Attendance_' . str_replace(' ', '_', $event_name) . '.csv');
+header('Content-Disposition: attachment; filename="' . safe_filename('Attendance_' . $event_name) . '"');
 
 $output = fopen('php://output', 'w');
 
@@ -37,7 +37,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 while ($row = $result->fetch_assoc()) {
-    fputcsv($output, $row);
+    fputcsv($output, csv_row($row));
 }
 
 fclose($output);

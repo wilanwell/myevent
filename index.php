@@ -14,8 +14,10 @@ $sql = "SELECT e.*, c.categoryName
         FROM events e 
         LEFT JOIN event_category c ON e.category_id = c.category_id";
 
+// Private events are unlisted: reachable by direct link only.
+$sql .= " WHERE e.visibility = 'Public'";
 if ($selected_category > 0) {
-    $sql .= " WHERE e.category_id = $selected_category";
+    $sql .= " AND e.category_id = " . (int) $selected_category;
 }
 
 $sql .= " ORDER BY e.event_date ASC";
@@ -50,14 +52,15 @@ $result = $conn->query($sql);
     </header>
 
     <main style="max-width: 1200px; margin: auto; padding: 0 20px;">
+        <div style="margin-top: 20px;"><?php include ROOT_PATH . '/include/flash.php'; ?></div>
         <h2 class="section-title" style="text-align: center; margin-top: 50px; margin-bottom: 20px; font-size: 2rem; color: #1e293b;">Upcoming Campus Events</h2>
 
         <div class="filter-container">
             <a href="index.php" class="filter-btn <?php echo ($selected_category == 0) ? 'active' : ''; ?>">All Events</a>
             <?php while($cat = $cat_list->fetch_assoc()): ?>
-                <a href="index.php?category=<?php echo $cat['category_id']; ?>" 
+                <a href="index.php?category=<?= e($cat['category_id']) ?>" 
                    class="filter-btn <?php echo ($selected_category == $cat['category_id']) ? 'active' : ''; ?>">
-                   <?php echo htmlspecialchars($cat['categoryName']); ?>
+                   <?php echo e($cat['categoryName']); ?>
                 </a>
             <?php endwhile; ?>
         </div>
@@ -68,29 +71,27 @@ $result = $conn->query($sql);
                     <div class="event-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
                         
                         <div style="height: 200px; overflow: hidden;">
-                            <?php 
-                                $poster = !empty($row['poster_path']) ? 'uploads/'.$row['poster_path'] : 'assets/img/event1.jpg';
-                            ?>
-                            <img src="<?php echo $poster; ?>" alt="Event Poster" style="width: 100%; height: 100%; object-fit: cover;">
+                            <img src="<?= e(poster_url($row['poster_path'])) ?>" loading="lazy" alt="Event Poster" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
 
                         <div style="padding: 20px;">
                             <span class="badge-cat" style="font-size: 0.75rem; background: #e0e7ff; color: #4f46e5; padding: 4px 8px; border-radius: 4px; font-weight: bold;">
-                                <?php echo htmlspecialchars($row['categoryName'] ?? 'General'); ?>
+                                <?php echo e($row['categoryName'] ?? 'General'); ?>
                             </span>
                             
-                            <h3 style="margin: 10px 0;"><?php echo htmlspecialchars($row['event_name']); ?></h3>
+                            <h3 style="margin: 10px 0;"><?php echo e($row['event_name']); ?></h3>
                             
                             <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">
                                 <i class="fa-regular fa-calendar"></i> <?php echo date('M d, Y', strtotime($row['event_date'])); ?><br>
-                                <i class="fa-solid fa-location-dot"></i> <?php echo htmlspecialchars($row['venue']); ?>
+                                <i class="fa-solid fa-location-dot"></i> <?php echo e($row['venue']); ?>
                             </div>
 
                             <div style="display: flex; gap: 10px;">
-                                <a href="event_detail.php?id=<?php echo $row['event_id']; ?>" class="nav-btn" style="flex: 1; text-align: center; border: 1px solid #cbd5e1; color: #334155; text-decoration: none; padding: 8px; border-radius: 6px;">Details</a>
+                                <a href="event_detail.php?id=<?= e($row['event_id']) ?>" class="nav-btn" style="flex: 1; text-align: center; border: 1px solid #cbd5e1; color: #334155; text-decoration: none; padding: 8px; border-radius: 6px;">Details</a>
                                 
                                 <form action="users/register_event.php" method="POST" style="flex: 1;">
-                                    <input type="hidden" name="event_id" value="<?php echo $row['event_id']; ?>">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
                                     <button type="submit" class="nav-btn active" style="width: 100%; border: none; cursor: pointer; background: #4f46e5; color: white; padding: 8px; border-radius: 6px;">Join Now</button>
                                 </form>
                             </div>

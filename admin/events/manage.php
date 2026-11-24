@@ -1,15 +1,8 @@
 <?php
 // 1. Start Session & Include Config
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 require_once '../../config.php'; 
 
-// 2. SECURITY CHECK
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../../auth/login.php");
-    exit;
-}
+require_admin();
 
 /**
  * 3. FETCH ALL EVENTS + ORGANIZER + CATEGORY
@@ -52,6 +45,7 @@ $result = $conn->query($sql);
 </aside>
 
 <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
     <div class="table-card">
         <h2><i class="fas fa-calendar-alt"></i> Event Management</h2>
         <table>
@@ -70,27 +64,27 @@ $result = $conn->query($sql);
                 <?php if ($result && $result->num_rows > 0): ?>
                     <?php while($row = $result->fetch_assoc()): ?>
                     <tr>
-                        <td><?php echo $row['event_id']; ?></td>
+                        <td><?= e($row['event_id']) ?></td>
                         
                         <td>
-                            <?php if(!empty($row['poster_path'])): ?>
-                                <img src="../../uploads/<?php echo htmlspecialchars($row['poster_path']); ?>" class="poster-thumb">
-                            <?php else: ?>
-                                <div style="width:50px; height:50px; background:#eee; display:flex; align-items:center; justify-content:center; border-radius:4px;"><i class="fas fa-image" style="color:#ccc;"></i></div>
-                            <?php endif; ?>
+                            <img src="<?= e(poster_url($row['poster_path'])) ?>" class="poster-thumb" alt="<?= e($row['event_name'] ?? 'Event poster') ?>" loading="lazy">
                         </td>
 
-                        <td><strong><?php echo htmlspecialchars($row['event_name']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($row['organizer_name'] ?? 'Unknown'); ?></td>
+                        <td><strong><?php echo e($row['event_name']); ?></strong></td>
+                        <td><?php echo e($row['organizer_name'] ?? 'Unknown'); ?></td>
                         
                         <td><span style="background:#e0e7ff; color:#4338ca; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:600;">
-                            <?php echo htmlspecialchars($row['categoryName'] ?? 'Uncategorized'); ?>
+                            <?php echo e($row['categoryName'] ?? 'Uncategorized'); ?>
                         </span></td>
 
                         <td><?php echo date('M d, Y', strtotime($row['event_date'])); ?></td>
                         <td>
-                            <a href="edit.php?id=<?php echo $row['event_id']; ?>" class="btn-action btn-edit"><i class="fas fa-edit"></i></a>
-                            <a href="delete.php?id=<?php echo $row['event_id']; ?>" class="btn-action btn-delete" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></a>
+                            <a href="edit.php?id=<?= e($row['event_id']) ?>" class="btn-action btn-edit"><i class="fas fa-edit"></i></a>
+                            <form action="delete.php" method="POST" style="display:inline;" onsubmit="return confirm('Delete this event and all its registrations?');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="id" value="<?= (int) $row['event_id'] ?>">
+                                <button type="submit" class="btn-action btn-delete" style="border:none; cursor:pointer;" aria-label="Delete event"><i class="fas fa-trash"></i></button>
+                            </form>
                         </td>
                     </tr>
                     <?php endwhile; ?>

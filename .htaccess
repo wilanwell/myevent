@@ -1,0 +1,8 @@
+# MyEvent - Apache hardening
+Options -Indexes
+
+# Block access to environment files, SQL dumps, logs and VCS metadata.
+<FilesMatch "^\.|\.(sql|log|md|example|ini)$">
+    Require all denied
+</FilesMatch>
+RedirectMatch 404 ^/myevent/(\.git|storage|include|admin/include)(/|$)

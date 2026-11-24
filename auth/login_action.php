@@ -1,84 +1,63 @@
 <?php
-// 1. Start Session
-session_start();
+/**
+ * MyEvent - Login handler
+ * Verifies credentials with throttling, then starts a fresh session.
+ */
+require_once __DIR__ . '/../config.php';
 
-// 2. Include Database Config
-require_once __DIR__ . '/../config.php'; 
+require_post();
 
-// Initialize variables
-$email = $password = "";
-$error_msg = "";
+$email    = trim((string) ($_POST['email'] ?? ''));
+$password = (string) ($_POST['password'] ?? '');
 
-// 3. Process Form Data
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // Sanitize input
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+// Generic message: never reveal whether the email exists.
+$invalid = 'Invalid email or password.';
 
-    if (empty($email) || empty($password)) {
-        $error_msg = "Please enter both email and password.";
-    } else {
-        $sql = "SELECT user_id, name, password, role FROM users WHERE email = ?";
-
-        if ($stmt = $conn->prepare($sql)) {
-            $stmt->bind_param("s", $email);
-            
-            if ($stmt->execute()) {
-                $stmt->store_result();
-
-                if ($stmt->num_rows == 1) {
-                    $stmt->bind_result($user_id, $name, $hashed_password, $role);
-                    $stmt->fetch();
-
-                    // 4. Verify the Password
-                    if (password_verify($password, $hashed_password)) {
-                        $_SESSION["loggedin"] = true;
-                        $_SESSION["id"] = $user_id; 
-                        $_SESSION["email"] = $email;
-                        $_SESSION["name"] = $name;
-                        $_SESSION["role"] = trim($role); 
-
-                        if ($_SESSION["role"] === 'Admin') {
-                            header("location: ../admin/index.php"); 
-                        } else {
-                            // Redirect others to the dashboard
-                            header("location: ../index.php");
-                        }
-                        exit;
-
-                    } else {
-                        $error_msg = "The password you entered was not valid.";
-                    }
-                } else {
-                    $error_msg = "No account found with that email address.";
-                }
-            } else {
-                $error_msg = "Something went wrong. Please try again later.";
-            }
-            $stmt->close();
-        }
-    }
-    $conn->close();
+if ($email === '' || $password === '') {
+    flash('error', 'Please enter both email and password.');
+    redirect('auth/login.php');
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Login Failed</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f1f5f9; margin: 0; }
-        .error-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; border-top: 5px solid #ef4444; }
-        .btn { display: inline-block; margin-top: 20px; padding: 10px 25px; background: #4f46e5; color: white; text-decoration: none; border-radius: 5px; }
-    </style>
-</head>
-<body>
-    <div class="error-card">
-        <h2>Login Error</h2>
-        <p><?php echo $error_msg; ?></p>
-        <a href="login.php" class="btn">Try Again</a>
-    </div>
-</body>
-</html>
+$_SESSION['old_email'] = $email;
+
+if (login_is_throttled($conn, $email)) {
+    flash('error', 'Too many failed login attempts. Please wait ' . LOGIN_WINDOW_MINUTES . ' minutes and try again.');
+    redirect('auth/login.php');
+}
+
+$stmt = $conn->prepare('SELECT user_id, name, password, role FROM users WHERE email = ? LIMIT 1');
+$stmt->bind_param('s', $email);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$user || !password_verify($password, $user['password'])) {
+    login_record_failure($conn, $email);
+    flash('error', $invalid);
+    redirect('auth/login.php');
+}
+
+// Upgrade the hash transparently if the algorithm/cost changed.
+if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
+    $newHash = password_hash($password, PASSWORD_DEFAULT);
+    $up = $conn->prepare('UPDATE users SET password = ? WHERE user_id = ?');
+    $up->bind_param('si', $newHash, $user['user_id']);
+    $up->execute();
+    $up->close();
+}
+
+login_clear_failures($conn, $email);
+
+// Prevent session fixation: new session ID, fresh session data.
+session_regenerate_id(true);
+$_SESSION = [
+    'loggedin'      => true,
+    'user_id'       => (int) $user['user_id'],
+    'id'            => (int) $user['user_id'], // legacy key still read by some pages
+    'email'         => $email,
+    'name'          => $user['name'],
+    'role'          => trim($user['role']),
+    'last_activity' => time(),
+];
+
+redirect($_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'index.php');

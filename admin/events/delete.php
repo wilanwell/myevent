@@ -1,42 +1,45 @@
 <?php
-// 1. Start Session & Include Config
-session_start();
-require_once '../../config.php'; 
+/**
+ * MyEvent Admin - Delete event (POST only).
+ * Registrations and notifications are removed by ON DELETE CASCADE.
+ */
+require_once __DIR__ . '/../../config.php';
 
-// 2. SECURITY CHECK
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'Admin') {
-    die("Unauthorized access.");
+require_admin();
+require_post();
+
+$event_id = (int) ($_POST['id'] ?? 0);
+
+$stmt = $conn->prepare('SELECT poster_path FROM events WHERE event_id = ?');
+$stmt->bind_param('i', $event_id);
+$stmt->execute();
+$event = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$event) {
+    flash('error', 'Event not found.');
+    redirect('admin/events/manage.php');
 }
 
-// 3. PROCESS THE DELETION
-if (isset($_GET['id'])) {
-    $event_id = intval($_GET['id']); // Sanitize input
+$conn->begin_transaction();
+try {
+    $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ?');
+    $stmt->bind_param('i', $event_id);
+    $stmt->execute();
+    $stmt->close();
 
-    /**
-     * DATABASE INTEGRITY STEP
-     * Before deleting the event, we must remove all participant registrations 
-     * associated with it to prevent foreign key errors.
-     */
-    $delete_regs = $conn->prepare("DELETE FROM registrations WHERE event_id = ?");
-    $delete_regs->bind_param("i", $event_id);
-    $delete_regs->execute();
-    $delete_regs->close();
+    $stmt = $conn->prepare('DELETE FROM events WHERE event_id = ?');
+    $stmt->bind_param('i', $event_id);
+    $stmt->execute();
+    $stmt->close();
 
-    // Now safe to delete the actual event
-    $sql = "DELETE FROM events WHERE event_id = ?";
-    
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("i", $event_id);
-        
-        if ($stmt->execute()) {
-            echo "<script>alert('Event and all associated registrations deleted successfully.'); window.location.href='manage.php';</script>";
-        } else {
-            echo "<script>alert('Error deleting event. Please try again.'); window.location.href='manage.php';</script>";
-        }
-        $stmt->close();
-    }
-} else {
-    header("location: manage.php");
+    $conn->commit();
+} catch (Throwable $ex) {
+    $conn->rollback();
+    throw $ex;
 }
-$conn->close();
-?>
+
+delete_upload($event['poster_path'], POSTER_DIR);
+
+flash('success', 'Event and all associated registrations deleted.');
+redirect('admin/events/manage.php');

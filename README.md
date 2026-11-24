@@ -1,0 +1,56 @@
+# MyEvent
+
+Campus event management system: event announcement, registration, organiser
+approval, attendance tracking, notifications and participant exports.
+
+**Stack:** PHP 8.1+ (mysqli), MariaDB 10.4+ / MySQL 8.0+, Apache 2.4 (`mod_rewrite`/`.htaccess` enabled).
+
+## Installation (XAMPP / local)
+
+1. Put the project in `htdocs/myevent`.
+2. Copy the environment file and adjust it:
+   ```
+   cp .env.example .env
+   ```
+   For local development set `APP_DEBUG=true`. **Never enable debug on a public server.**
+3. Create the database and load the schema:
+   ```
+   mysql -u root -e "CREATE DATABASE myevent CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
+   mysql -u root myevent < database/schema.sql
+   mysql -u root myevent < database/seed.sql   # optional demo data
+   ```
+4. Open http://localhost/myevent.
+
+Demo accounts created by `seed.sql` are listed at the top of that file.
+Delete or change them before going live.
+
+## Upgrading an existing database
+
+Apply the files in `database/migrations/` that have not been run yet, in filename order:
+```
+mysql -u root myevent < database/migrations/<file>.sql
+```
+`database/schema.sql` always reflects the schema after the latest migration.
+Back up first (`mysqldump -u root myevent > backup.sql`).
+
+## Project layout
+
+| Path | Purpose |
+|---|---|
+| `config.php` | Bootstrap: `.env`, error handling, hardened session, DB connection, CSRF check for every POST |
+| `include/security.php` | `e()`, CSRF, `require_login()` / `require_admin()`, safe image upload, login throttling |
+| `include/helpers.php` | `poster_url()`, `avatar_url()`, fee/date helpers |
+| `include/flash.php` | Renders one-time flash messages |
+| `auth/` | Login, registration, logout |
+| `users/` | Participant & organiser pages |
+| `admin/` | Administrator pages |
+| `uploads/events`, `uploads/profiles` | User uploads (script execution blocked by `uploads/.htaccess`) |
+| `database/` | `schema.sql`, `seed.sql`, `migrations/` |
+| `storage/logs` | PHP error log (not web-accessible) |
+
+## Security conventions
+
+- Every page includes `config.php` first. Every POST form must contain `<?= csrf_field() ?>`.
+- State-changing actions use POST only. Escape all output with `e()`.
+- Use prepared statements for every query that includes user input.
+- Use `upload_image()` for uploads; never trust the original file name or extension.

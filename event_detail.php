@@ -1,19 +1,20 @@
 <?php
-session_start();
 require_once 'config.php';
 
 // 1. Validate ID
-if (!isset($_GET['id']) || empty($_GET['id'])) {
-    header("location: index.php");
-    exit;
+if (empty($_GET['id'])) {
+    redirect('index.php');
 }
 
 $event_id = intval($_GET['id']);
 
 //2. Fetch Event Details
-$sql = "SELECT e.*, u.email as organizer_email, u.name as organizer_name 
+$sql = "SELECT e.*, c.categoryName AS category, u.email as organizer_email, u.name as organizer_name,
+               (SELECT COUNT(*) FROM registrations r
+                 WHERE r.event_id = e.event_id AND r.approval_status <> 'Rejected') AS taken
         FROM events e 
-        LEFT JOIN users u ON e.created_by = u.user_id 
+        LEFT JOIN users u ON e.created_by = u.user_id
+        LEFT JOIN event_category c ON e.category_id = c.category_id 
         WHERE e.event_id = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $event_id);
@@ -21,16 +22,22 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 0) {
-    echo "Event not found.";
-    exit;
+    http_response_code(404);
+    render_error_page('Event not found', 'This event does not exist or has been removed.');
 }
 
 $event = $result->fetch_assoc();
 
+// Registration availability (same rules as users/register_event.php)
+$close_date = $event['reg_close_date'] ?: $event['event_date'];
+$is_closed  = $close_date && $close_date < date('Y-m-d');
+$is_full    = (int) $event['max_participants'] > 0 && (int) $event['taken'] >= (int) $event['max_participants'];
+$is_owner   = is_logged_in() && (int) $event['created_by'] === current_user_id();
+
 // 3. CHECK USER REGISTRATION STATUS
 $status = null;
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    $user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+if (is_logged_in()) {
+    $user_id = current_user_id();
     
     $check_sql = "SELECT approval_status FROM registrations WHERE user_id = ? AND event_id = ?";
     $check_stmt = $conn->prepare($check_sql);
@@ -49,7 +56,7 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?= htmlspecialchars($event['event_name']); ?> | <?php echo APP_NAME; ?></title>
+    <title><?= e($event['event_name']); ?> | <?php echo APP_NAME; ?></title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
@@ -73,40 +80,42 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 <?php include "include/topNav.php"; ?>
 
 <main style="padding: 60px 0;">
+    <div style="max-width: 1100px; margin: 0 auto 20px; padding: 0 20px;"><?php include ROOT_PATH . '/include/flash.php'; ?></div>
     <div class="container" style="max-width: 600px; margin: 0 auto;">
         <a href="index.php" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to Events
         </a>
 
         <div class="detail-card">
-            <?php if(!empty($event['poster_path'])): ?>
-                <img src="uploads/<?= htmlspecialchars($event['poster_path']); ?>" alt="Event Poster" class="detail-img">
-            <?php else: ?>
-                <div class="detail-img" style="background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#cbd5e1;">
-                    <i class="fa-regular fa-image" style="font-size:5rem;"></i>
-                </div>
-            <?php endif; ?>
+            <img src="<?= e(poster_url($event['poster_path'])) ?>"  class="detail-img" alt="<?= e($event['event_name'] ?? 'Event poster') ?>" loading="lazy">
 
             <div class="detail-content">
                 <?php if(!empty($event['category'])): ?>
-                    <span class="badge-cat"><?= htmlspecialchars($event['category']); ?></span>
+                    <span class="badge-cat"><?= e($event['category']); ?></span>
                 <?php endif; ?>
 
-                <h1 class="d-title"><?= htmlspecialchars($event['event_name']); ?></h1>
+                <h1 class="d-title"><?= e($event['event_name']); ?></h1>
 
                 <div class="meta-info">
                     <div><i class="fa-regular fa-calendar"></i> <?= date('F d, Y', strtotime($event['event_date'])); ?></div>
-                    <div><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($event['venue']); ?></div>
-                    <div><i class="fa-regular fa-user"></i> By: <?= htmlspecialchars($event['organizer_name'] ?? $event['organizer_email']); ?></div>
+                    <div><i class="fa-solid fa-location-dot"></i> <?= e($event['venue']); ?></div>
+                    <?php if (!empty($event['event_time'])): ?>
+                        <div><i class="fa-regular fa-clock"></i> <?= date('h:i A', strtotime($event['event_time'])) ?></div>
+                    <?php endif; ?>
+                    <div><i class="fa-solid fa-tag"></i> <?= e(format_fee($event['fee'])) ?></div>
+                    <?php if ((int) $event['max_participants'] > 0): ?>
+                        <div><i class="fa-solid fa-users"></i> <?= max(0, (int) $event['max_participants'] - (int) $event['taken']) ?> seats left</div>
+                    <?php endif; ?>
+                    <div><i class="fa-regular fa-user"></i> By: <?= e($event['organizer_name'] ?? $event['organizer_email']); ?></div>
                 </div>
 
                 <div class="d-desc" style="line-height: 1.8; color: #334155;">
                     <h4 style="margin-bottom: 10px; font-size: 1.2rem; color: #1e293b;">About this Event</h4>
-                    <?= nl2br(htmlspecialchars($event['description'])); ?>
+                    <?= nl2br(e($event['description'])); ?>
                 </div>
 
                 <div class="action-area">
-                    <?php if(isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true): ?>
+                    <?php if(is_logged_in()): ?>
                         
                         <?php if($status === 'Approved'): ?>
                             <div class="btn-common btn-joined" style="text-align: center;">
@@ -118,9 +127,25 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
                                 <i class="fa-regular fa-clock"></i> Waiting for Approval
                             </div>
                         
+                        <?php elseif($status === 'Rejected'): ?>
+                            <div class="btn-common btn-pending" style="text-align: center; background:#fee2e2; color:#991b1b;">
+                                <i class="fa-solid fa-circle-xmark"></i> Your registration was not approved
+                            </div>
+
+                        <?php elseif($is_owner): ?>
+                            <a href="users/manage_participants.php?event_id=<?= (int) $event_id ?>" class="btn-common btn-register">
+                                <i class="fa-solid fa-users"></i> Manage Participants
+                            </a>
+
+                        <?php elseif($is_closed || $is_full): ?>
+                            <div class="btn-common btn-pending" style="text-align: center; background:#f1f5f9; color:#475569;">
+                                <i class="fa-solid fa-lock"></i> <?= $is_closed ? 'Registration closed' : 'Event is full' ?>
+                            </div>
+
                         <?php else: ?>
                             <form action="users/register_event.php" method="POST">
-                                <input type="hidden" name="event_id" value="<?= $event_id; ?>">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="event_id" value="<?= e($event_id) ?>">
                                 <button type="submit" class="btn-common btn-register">
                                     Register Now
                                 </button>

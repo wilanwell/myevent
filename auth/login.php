@@ -8,10 +8,13 @@
 require_once '../config.php';
 
 // 2. Redirect if already logged in
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    header("location: ../index.php");
-    exit;
+if (is_logged_in()) {
+    redirect(is_admin() ? 'admin/index.php' : 'index.php');
 }
+
+$flashes = get_flashes();
+$old_email = $_SESSION['old_email'] ?? '';
+unset($_SESSION['old_email']);
 ?>
 
 <!DOCTYPE html>
@@ -82,16 +85,21 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
 
             <div class="login-card">
                 <h3>Account Login</h3>
-                
+
+                <?php foreach ($flashes as $f): ?>
+                    <div role="alert" class="flash flash-<?= e($f['type']) ?>"><?= e($f['message']) ?></div>
+                <?php endforeach; ?>
+
                 <form action="login_action.php" method="POST">
+                    <?= csrf_field() ?>
                     <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" name="email" placeholder="name@example.com" required>
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" placeholder="name@example.com" value="<?= e($old_email) ?>" autocomplete="email" required>
                     </div>
 
                     <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" name="password" placeholder="••••••••" required>
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
                     </div>
 
                     <button type="submit" class="nav-btn active" style="width: 100%; border: none; padding: 14px; cursor: pointer; font-size: 1rem; font-weight: 700; margin: 10px 0; border-radius: 10px;">

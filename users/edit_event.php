@@ -1,12 +1,10 @@
 <?php
-session_start();
 require_once '../config.php';
 
-// 1. Access Control
-if (!isset($_SESSION['loggedin'])) { header("location: ../auth/login.php"); exit; }
+require_login();
 
 $error = "";
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = current_user_id();
 
 // 2. Get Event Data including poster_path
 if (isset($_GET['id'])) {
@@ -17,26 +15,19 @@ if (isset($_GET['id'])) {
     $stmt->execute();
     $event = $stmt->get_result()->fetch_assoc();
 
-    if (!$event) { die("Event not found or access denied."); }
+    if (!$event) {
+        flash('error', 'Event not found or access denied.');
+        redirect('users/my_events.php');
+    }
 } else {
     header("location: my_events.php");
     exit;
 }
 
-// --- HELPER FUNCTION FOR FILE UPLOAD ---
+// --- File upload: validated by content type, random name (see include/security.php) ---
 function handlePosterUpload($fileArray) {
-    if (!isset($fileArray) || $fileArray['error'] !== UPLOAD_ERR_OK) { return [false, null]; }
-    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-    $ext = strtolower(pathinfo($fileArray['name'], PATHINFO_EXTENSION));
-    
-    if (!in_array($ext, $allowed)) { return [false, "Invalid file type."]; }
-    if ($fileArray['size'] > 5*1024*1024) { return [false, "File too large (Max 5MB)."]; }
-    
-    $newFileName = time() . "_" . bin2hex(random_bytes(4)) . "." . $ext;
-    if (move_uploaded_file($fileArray['tmp_name'], '../uploads/' . $newFileName)) { 
-        return [true, $newFileName]; 
-    }
-    return [false, "Upload failed."];
+    [$name, $err] = upload_image($fileArray, POSTER_DIR, 'event', 5 * 1024 * 1024);
+    return $err ? [false, $err] : [$name !== null, $name];
 }
 
 // 3. Handle Update Logic
@@ -48,23 +39,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $venue = trim($_POST['location']);
     $date = $_POST['date'];
     $time = $_POST['time'];
-    $mode = $_POST['mode'];
+    $mode = (string) ($_POST['mode'] ?? '');
+    if (!in_array($mode, ['Physical', 'Online', 'Hybrid'], true)) { $error = 'Please choose a valid event mode.'; }
     $reg_close = $_POST['reg_close_date'];
     $max_part = !empty($_POST['max_participants']) ? intval($_POST['max_participants']) : 0;
-    $fee = trim($_POST['fee']);
+    $fee = parse_fee($_POST['fee'] ?? 0);
     $remarks = trim($_POST['remarks']);
     
     // Default to existing poster
     $poster_path = $event['poster_path']; 
 
     // Handle New Poster Upload
-    if (isset($_FILES['poster']) && $_FILES['poster']['size'] > 0) {
+    if (empty($error) && isset($_FILES['poster']) && $_FILES['poster']['size'] > 0) {
         list($success, $result) = handlePosterUpload($_FILES['poster']);
         if ($success) {
             // Delete old file if it exists
-            if (!empty($event['poster_path']) && file_exists('../uploads/' . $event['poster_path'])) {
-                unlink('../uploads/' . $event['poster_path']);
-            }
+            delete_upload($event['poster_path'], POSTER_DIR);
             $poster_path = $result;
         } else {
             $error = $result;
@@ -87,10 +77,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             );
             
             if ($stmt->execute()) {
-                header("location: my_events.php?msg=updated");
-                exit;
+                flash('success', 'Event updated successfully.');
+                redirect('users/my_events.php');
             } else {
-                $error = "Update failed: " . $conn->error;
+                $error = "Could not update the event. Please try again.";
             }
         }
     }
@@ -119,21 +109,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body>
     <div class="form-card">
         <h2><i class="fas fa-edit"></i> Edit Event</h2>
-        <?php if($error) echo "<div class='alert'>$error</div>"; ?>
+        <?php if ($error): ?><div class="alert"><?= e($error) ?></div><?php endif; ?>
 
         <form action="" method="POST" enctype="multipart/form-data">
+            <?= csrf_field() ?>
             <div class="form-group">
                 <label>Current Poster</label>
-                <?php if(!empty($event['poster_path']) && file_exists('../uploads/' . $event['poster_path'])): ?>
-                    <img src="../uploads/<?php echo $event['poster_path']; ?>" class="poster-preview">
-                <?php else: ?>
-                    <div style="width:100px; height:100px; background:#f1f5f9; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:10px;">No Image</div>
-                <?php endif; ?>
+                <img src="<?= e(poster_url($event['poster_path'])) ?>" class="poster-preview" alt="<?= e($event['event_name'] ?? 'Event poster') ?>" loading="lazy">
                 <input type="file" name="poster" accept="image/*">
             </div>
 
             <div class="form-grid">
-                <div class="form-group"><label>Event Name</label><input type="text" name="title" value="<?php echo htmlspecialchars($event['event_name']); ?>" required></div>
+                <div class="form-group"><label>Event Name</label><input type="text" name="title" value="<?php echo e($event['event_name']); ?>" required></div>
                 <div class="form-group">
                     <label>Type (Category)</label>
                     <select name="category_id" required>
@@ -147,15 +134,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
             </div>
 
-            <div class="form-group"><label>Description</label><textarea name="description" rows="2" required><?php echo htmlspecialchars($event['description']); ?></textarea></div>
+            <div class="form-group"><label>Description</label><textarea name="description" rows="2" required><?php echo e($event['description']); ?></textarea></div>
 
             <div class="form-grid">
-                <div class="form-group"><label>Date</label><input type="date" name="date" value="<?php echo $event['event_date']; ?>" required></div>
-                <div class="form-group"><label>Time</label><input type="time" name="time" value="<?php echo $event['event_time']; ?>" required></div>
+                <div class="form-group"><label>Date</label><input type="date" name="date" value="<?= e($event['event_date']) ?>" required></div>
+                <div class="form-group"><label>Time</label><input type="time" name="time" value="<?= e($event['event_time']) ?>" required></div>
             </div>
 
             <div class="form-grid">
-                <div class="form-group"><label>Venue</label><input type="text" name="location" value="<?php echo htmlspecialchars($event['venue']); ?>" required></div>
+                <div class="form-group"><label>Venue</label><input type="text" name="location" value="<?php echo e($event['venue']); ?>" required></div>
                 <div class="form-group">
                     <label>Mode</label>
                     <select name="mode">
@@ -167,16 +154,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <div class="form-grid">
-                <div class="form-group"><label>Fee (RM)</label><input type="text" name="fee" value="<?php echo $event['fee']; ?>" required></div>
-                <div class="form-group"><label>Reg. Close Date</label><input type="date" name="reg_close_date" value="<?php echo $event['reg_close_date']; ?>" required></div>
+                <div class="form-group"><label>Fee (RM)</label><input type="text" name="fee" value="<?= e(number_format((float) $event['fee'], 2, ".", "")) ?>" placeholder="0.00 = Free" required></div>
+                <div class="form-group"><label>Reg. Close Date</label><input type="date" name="reg_close_date" value="<?= e($event['reg_close_date']) ?>" required></div>
             </div>
 
             <div class="form-grid">
-                <div class="form-group"><label>Contact No</label><input type="text" name="contact_no" value="<?php echo htmlspecialchars($event['contact_no']); ?>"></div>
-                <div class="form-group"><label>Max Participants</label><input type="number" name="max_participants" value="<?php echo $event['max_participants']; ?>"></div>
+                <div class="form-group"><label>Contact No</label><input type="text" name="contact_no" value="<?php echo e($event['contact_no']); ?>"></div>
+                <div class="form-group"><label>Max Participants</label><input type="number" name="max_participants" value="<?= e($event['max_participants']) ?>"></div>
             </div>
 
-            <div class="form-group"><label>Remarks</label><textarea name="remarks" rows="2"><?php echo htmlspecialchars($event['remarks']); ?></textarea></div>
+            <div class="form-group"><label>Remarks</label><textarea name="remarks" rows="2"><?php echo e($event['remarks']); ?></textarea></div>
 
             <button type="submit" class="btn-update">Update Event Details</button>
             <a href="my_events.php" style="display:block; text-align:center; margin-top:10px; color:#64748b; text-decoration:none;">Cancel</a>

@@ -1,14 +1,9 @@
 <?php
-require_once __DIR__ . '/../../config.php'; 
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../../config.php';
 
-// Admin Check
-if (!isset($_SESSION['role']) || strtolower($_SESSION['role']) !== 'admin') {
-    header("Location: " . BASE_URL . "auth/login.php");
-    exit;
-}
+require_admin();
 
-$id = $_GET['id'] ?? null;
+$id = (int) ($_GET['id'] ?? 0);
 $error = '';
 $success = '';
 
@@ -19,24 +14,39 @@ if ($id) {
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
     
-    if (!$user) { die("User not found."); }
+    if (!$user) {
+        flash('error', 'User not found.');
+        redirect('admin/users/manage.php');
+    }
+} else {
+    redirect('admin/users/manage.php');
 }
 
 // Handle Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $role = $_POST['role'];
-    $category = $_POST['category'];
-    
-    if (empty($name) || empty($email)) {
-        $error = "Name and Email are required.";
+    $name = trim((string) ($_POST['name'] ?? ''));
+    $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+    $role = (string) ($_POST['role'] ?? '');
+    $category = (string) ($_POST['category'] ?? '');
+
+    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "A name and a valid email are required.";
+    } elseif (!in_array($role, ['User', 'Admin'], true) || !in_array($category, ['Student', 'Staff', 'Public'], true)) {
+        $error = "Please choose a valid role and category.";
+    } elseif ($id === current_user_id() && $role !== 'Admin') {
+        $error = "You cannot remove your own admin role.";
     } else {
         $updateSql = "UPDATE users SET name=?, email=?, role=?, category=? WHERE user_id=?";
         $stmt = $conn->prepare($updateSql);
         $stmt->bind_param("ssssi", $name, $email, $role, $category, $id);
         
-        if ($stmt->execute()) {
+        try {
+            $ok = $stmt->execute();
+        } catch (mysqli_sql_exception $ex) {
+            if ($ex->getCode() !== 1062) { throw $ex; }
+            $ok = false;
+        }
+        if ($ok) {
             $success = "User updated successfully!";
             // Refresh user data for display
             $user['name'] = $name;
@@ -44,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user['role'] = $role;
             $user['category'] = $category;
         } else {
-            $error = "Database error: " . $conn->error;
+            $error = "Could not update the user. The email may already be in use.";
         }
     }
 }
@@ -77,18 +87,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="form-container">
             <h2 style="margin-top: 0; color: #1e293b;"><i class="fas fa-user-edit"></i> Edit User</h2>
             
-            <?php if ($success): ?><div class="alert alert-success"><?= $success ?></div><?php endif; ?>
-            <?php if ($error): ?><div class="alert alert-error"><?= $error ?></div><?php endif; ?>
+            <?php if ($success): ?><div class="alert alert-success"><?= e($success) ?></div><?php endif; ?>
+            <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
 
             <form method="POST">
+                <?= csrf_field() ?>
                 <div class="form-group">
                     <label>Full Name</label>
-                    <input type="text" name="name" value="<?= htmlspecialchars($user['name']) ?>" required>
+                    <input type="text" name="name" value="<?= e($user['name']) ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label>Email Address</label>
-                    <input type="email" name="email" value="<?= htmlspecialchars($user['email']) ?>" required>
+                    <input type="email" name="email" value="<?= e($user['email']) ?>" required>
                 </div>
 
                 <div class="form-group">
@@ -101,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="form-group">
                     <label>Category</label>
-                    <input type="text" name="category" value="<?= htmlspecialchars($user['category']) ?>">
+                    <input type="text" name="category" value="<?= e($user['category']) ?>">
                 </div>
 
                 <button type="submit" class="btn-save">Update User Info</button>

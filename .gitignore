@@ -1,0 +1,14 @@
+# Local environment (contains credentials)
+.env
+
+# Runtime data
+storage/logs/*
+!storage/logs/.gitkeep
+storage/backups/*
+
+# User uploads (the .htaccess that blocks script execution IS tracked)
+uploads/events/*
+uploads/profiles/*
+!uploads/.htaccess
+!uploads/events/.gitkeep
+!uploads/profiles/.gitkeep

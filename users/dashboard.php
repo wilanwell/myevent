@@ -5,22 +5,18 @@
 
 require_once '../config.php';
 
-// Access Control
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header("location: ../auth/login.php");
-    exit;
-}
+require_login();
 
 // FIXED: Using 'user_id' for consistency with database and session
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = (int) current_user_id();
 $user_name = $_SESSION['name'];
 $user_role = $_SESSION['role'];
 $user_email = $_SESSION['email'] ?? 'Not Set';
 
 // Data Retrieval for Dashboard Stats
 $total_events = $conn->query("SELECT COUNT(*) as count FROM events")->fetch_assoc()['count'];
-$my_registrations = $conn->query("SELECT COUNT(*) as count FROM registrations WHERE user_id = $user_id")->fetch_assoc()['count'];
-$my_created_events = $conn->query("SELECT COUNT(*) as count FROM events WHERE created_by = $user_id")->fetch_assoc()['count'];
+$my_registrations = $conn->query("SELECT COUNT(*) as count FROM registrations WHERE user_id = " . $user_id)->fetch_assoc()['count'];
+$my_created_events = $conn->query("SELECT COUNT(*) as count FROM events WHERE created_by = " . $user_id)->fetch_assoc()['count'];
 ?>
 
 <!DOCTYPE html>
@@ -83,9 +79,10 @@ $my_created_events = $conn->query("SELECT COUNT(*) as count FROM events WHERE cr
         </aside>
 
         <main class="main-content">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
             <header style="padding: 20px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin:0;">Welcome back, <?php echo htmlspecialchars($user_name); ?>!</h2>
-                <span style="background: #4f46e5; color: white; padding: 5px 15px; border-radius: 20px; font-weight: 600; font-size: 0.8rem;"><?php echo $user_role; ?></span>
+                <h2 style="margin:0;">Welcome back, <?php echo e($user_name); ?>!</h2>
+                <span style="background: #4f46e5; color: white; padding: 5px 15px; border-radius: 20px; font-weight: 600; font-size: 0.8rem;"><?= e($user_role) ?></span>
             </header>
 
             <div style="padding: 30px;">
@@ -98,18 +95,18 @@ $my_created_events = $conn->query("SELECT COUNT(*) as count FROM events WHERE cr
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 40px;">
                     <div class="stat-card" style="border-left: 5px solid #4f46e5;">
                         <p style="color: #64748b; font-weight: 600; margin: 0;">Total System Events</p>
-                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?php echo $total_events; ?></h3>
+                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?= e($total_events) ?></h3>
                         <small style="color: #94a3b8;">Active events on site</small>
                     </div>
                     <div class="stat-card" style="border-left: 5px solid #10b981;">
                         <p style="color: #64748b; font-weight: 600; margin: 0;">My Registrations</p>
-                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?php echo $my_registrations; ?></h3>
+                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?= e($my_registrations) ?></h3>
                         <small style="color: #94a3b8;">Events you've joined</small>
                     </div>
                     <?php if ($user_role !== 'Public'): ?>
                     <div class="stat-card" style="border-left: 5px solid #f59e0b;">
                         <p style="color: #64748b; font-weight: 600; margin: 0;">Events I Organize</p>
-                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?php echo $my_created_events; ?></h3>
+                        <h3 style="font-size: 2.5rem; margin: 10px 0; color: #1e293b;"><?= e($my_created_events) ?></h3>
                         <small style="color: #94a3b8;">Managed by you</small>
                     </div>
                     <?php endif; ?>
@@ -120,11 +117,11 @@ $my_created_events = $conn->query("SELECT COUNT(*) as count FROM events WHERE cr
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 10px;">
                         <div>
                             <p style="color: #64748b; margin-bottom: 5px;">Account Category</p>
-                            <p style="font-weight: 700; color: #1e293b;"><?php echo $user_role; ?></p>
+                            <p style="font-weight: 700; color: #1e293b;"><?= e($user_role) ?></p>
                         </div>
                         <div>
                             <p style="color: #64748b; margin-bottom: 5px;">Login Email</p>
-                            <p style="font-weight: 700; color: #1e293b;"><?php echo htmlspecialchars($user_email); ?></p>
+                            <p style="font-weight: 700; color: #1e293b;"><?php echo e($user_email); ?></p>
                         </div>
                     </div>
                     <a href="profile.php" style="display: inline-block; margin-top: 20px; color: #4f46e5; text-decoration: none; font-weight: 700; border-bottom: 2px solid #4f46e5;">Edit Profile Details →</a>

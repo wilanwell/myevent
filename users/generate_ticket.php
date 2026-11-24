@@ -1,11 +1,10 @@
 <?php
-session_start();
 
 require_once '../config.php';
 
-if (!isset($_SESSION['loggedin'])) { exit; }
+require_login();
 
-$user_id = $_SESSION['user_id'] ?? $_SESSION['id'];
+$user_id = current_user_id();
 $event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
 
 // Fetch user and event details to verify approval
@@ -20,13 +19,16 @@ $stmt->bind_param("ii", $event_id, $user_id);
 $stmt->execute();
 $data = $stmt->get_result()->fetch_assoc();
 
-if (!$data) { die("Ticket not available or not yet approved."); }
+if (!$data) {
+    flash('error', 'Your ticket is available once the organiser approves your registration.');
+    redirect('users/my_registrations.php');
+}
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Ticket - <?= htmlspecialchars($data['event_name']) ?></title>
+    <title>Ticket - <?= e($data['event_name']) ?></title>
     <style>
         body { background: #f1f5f9; padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .ticket { border: 2px dashed #4f46e5; background: #ffffff; padding: 30px; width: 500px; margin: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -60,12 +62,12 @@ if (!$data) { die("Ticket not available or not yet approved."); }
         <div class="ticket-info">
             <div style="margin-bottom: 15px;">
                 <span class="label">Event Name</span>
-                <h3 style="margin:0; color:#1e293b;"><?= htmlspecialchars($data['event_name']) ?></h3>
+                <h3 style="margin:0; color:#1e293b;"><?= e($data['event_name']) ?></h3>
             </div>
 
             <div style="margin-bottom: 15px;">
                 <span class="label">Participant</span>
-                <p style="margin:0; font-weight:600;"><?= htmlspecialchars($data['user_name']) ?></p>
+                <p style="margin:0; font-weight:600;"><?= e($data['user_name']) ?></p>
             </div>
 
             <div style="display:flex; gap:30px; margin-bottom: 15px;">
@@ -81,7 +83,7 @@ if (!$data) { die("Ticket not available or not yet approved."); }
 
             <div>
                 <span class="label">Venue</span>
-                <p style="margin:0; font-weight:600;"><?= htmlspecialchars($data['venue']) ?></p>
+                <p style="margin:0; font-weight:600;"><?= e($data['venue']) ?></p>
             </div>
         </div>
 
