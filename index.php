@@ -1,112 +1,94 @@
 <?php
+/**
+ * MyEvent - Home page
+ */
+require_once __DIR__ . '/config.php';
 
-// 1. Include global configuration
-require_once 'config.php';
-
-// 2. Handle Filtering Logic
-$selected_category = isset($_GET['category']) ? intval($_GET['category']) : 0;
-
-// 3. Fetch Categories for the filter bar
-$cat_list = $conn->query("SELECT * FROM event_category ORDER BY categoryName ASC");
-
-// 4. Fetch Events for Public Browsing
-$sql = "SELECT e.*, c.categoryName 
-        FROM events e 
-        LEFT JOIN event_category c ON e.category_id = c.category_id";
+$card_cols = "e.event_id, e.event_name, e.event_date, e.event_time, e.venue, e.mode, e.fee, e.poster_path,
+              e.max_participants, e.reg_close_date, c.categoryName,
+              (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status <> 'Rejected') AS taken";
 
 // Private events are unlisted: reachable by direct link only.
-$sql .= " WHERE e.visibility = 'Public'";
-if ($selected_category > 0) {
-    $sql .= " AND e.category_id = " . (int) $selected_category;
-}
+$upcoming = db_all($conn,
+    "SELECT $card_cols FROM events e LEFT JOIN event_category c ON c.category_id = e.category_id
+     WHERE e.visibility = 'Public' AND e.event_date >= CURDATE()
+     ORDER BY e.event_date ASC, e.event_time ASC LIMIT 7");
 
-$sql .= " ORDER BY e.event_date ASC";
-$result = $conn->query($sql);
+$next = array_shift($upcoming);
+$open_count = (int) db_value($conn, "SELECT COUNT(*) FROM events WHERE visibility = 'Public' AND COALESCE(reg_close_date, event_date) >= CURDATE()");
+$categories = db_all($conn, 'SELECT category_id, categoryName FROM event_category ORDER BY categoryName');
+
+$page_title  = 'Campus events';
+$nav_current = 'home';
+include ROOT_PATH . '/include/layout/public_start.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | <?php echo APP_NAME; ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_PATH_CSS; ?>style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        .filter-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 40px; flex-wrap: wrap; }
-        .filter-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid #e2e8f0; background: white; color: #64748b; text-decoration: none; font-size: 0.9rem; transition: 0.3s; }
-        .filter-btn:hover, .filter-btn.active { background: #4f46e5; color: white; border-color: #4f46e5; }
-    </style>
-</head>
-<body>
-
-    <?php include 'include/topNav.php'; ?>
-
-    <header class="hero">
-        <div class="overlay"></div>
-        <div class="hero-content">
-            <img src="<?php echo BASE_PATH_IMG; ?>logo.png" alt="MyEvent Logo" class="logo">
-            <h1>Welcome to <?php echo APP_NAME; ?></h1>
-            <p>Digitalizing campus event handling from announcement to registration.</p>
-        </div>
-    </header>
-
-    <main style="max-width: 1200px; margin: auto; padding: 0 20px;">
-        <div style="margin-top: 20px;"><?php include ROOT_PATH . '/include/flash.php'; ?></div>
-        <h2 class="section-title" style="text-align: center; margin-top: 50px; margin-bottom: 20px; font-size: 2rem; color: #1e293b;">Upcoming Campus Events</h2>
-
-        <div class="filter-container">
-            <a href="index.php" class="filter-btn <?php echo ($selected_category == 0) ? 'active' : ''; ?>">All Events</a>
-            <?php while($cat = $cat_list->fetch_assoc()): ?>
-                <a href="index.php?category=<?= e($cat['category_id']) ?>" 
-                   class="filter-btn <?php echo ($selected_category == $cat['category_id']) ? 'active' : ''; ?>">
-                   <?php echo e($cat['categoryName']); ?>
-                </a>
-            <?php endwhile; ?>
+<section class="hero">
+    <div class="hero-inner">
+        <div>
+            <?php include ROOT_PATH . '/include/flash.php'; ?>
+            <h1>Find something worth showing up for.</h1>
+            <p>Workshops, talks, competitions and festivals happening on campus. Register in a minute and keep your ticket on your phone.</p>
+            <form class="hero-search" action="browse_events.php" method="GET" role="search">
+                <label class="search-box">
+                    <span class="sr-only">Search events</span>
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <input class="input" type="search" name="q" placeholder="Search by event name or venue">
+                </label>
+                <button class="btn btn-primary" type="submit">Search</button>
+            </form>
+            <p class="hero-meta"><?= $open_count ?> <?= $open_count === 1 ? 'event is' : 'events are' ?> open for registration. <a href="browse_events.php">See all events</a></p>
         </div>
 
-        <div class="event-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 50px;">
-            <?php if ($result->num_rows > 0): ?>
-                <?php while($row = $result->fetch_assoc()): ?>
-                    <div class="event-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
-                        
-                        <div style="height: 200px; overflow: hidden;">
-                            <img src="<?= e(poster_url($row['poster_path'])) ?>" loading="lazy" alt="Event Poster" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-
-                        <div style="padding: 20px;">
-                            <span class="badge-cat" style="font-size: 0.75rem; background: #e0e7ff; color: #4f46e5; padding: 4px 8px; border-radius: 4px; font-weight: bold;">
-                                <?php echo e($row['categoryName'] ?? 'General'); ?>
-                            </span>
-                            
-                            <h3 style="margin: 10px 0;"><?php echo e($row['event_name']); ?></h3>
-                            
-                            <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">
-                                <i class="fa-regular fa-calendar"></i> <?php echo date('M d, Y', strtotime($row['event_date'])); ?><br>
-                                <i class="fa-solid fa-location-dot"></i> <?php echo e($row['venue']); ?>
-                            </div>
-
-                            <div style="display: flex; gap: 10px;">
-                                <a href="event_detail.php?id=<?= e($row['event_id']) ?>" class="nav-btn" style="flex: 1; text-align: center; border: 1px solid #cbd5e1; color: #334155; text-decoration: none; padding: 8px; border-radius: 6px;">Details</a>
-                                
-                                <form action="users/register_event.php" method="POST" style="flex: 1;">
-                                    <?= csrf_field() ?>
-                                    <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
-                                    <button type="submit" class="nav-btn active" style="width: 100%; border: none; cursor: pointer; background: #4f46e5; color: white; padding: 8px; border-radius: 6px;">Join Now</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <div style="text-align: center; grid-column: 1/-1; padding: 50px;">
-                    <i class="fa-solid fa-calendar-xmark" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 15px;"></i>
-                    <p style="color: #64748b;">No events found for this category.</p>
+        <?php if ($next): $ts = strtotime($next['event_date']); ?>
+            <a class="ticket" href="event_detail.php?id=<?= (int) $next['event_id'] ?>" aria-label="Next up: <?= e($next['event_name']) ?>">
+                <div class="ticket-stub" aria-hidden="true">
+                    <span class="ticket-weekday"><?= date('l', $ts) ?></span>
+                    <span class="ticket-day"><?= date('j', $ts) ?></span>
+                    <span class="ticket-month"><?= date('M Y', $ts) ?></span>
                 </div>
-            <?php endif; ?>
-        </div>
-    </main>
+                <div class="ticket-body">
+                    <span class="ticket-label">Next up</span>
+                    <h2 class="ticket-title"><?= e($next['event_name']) ?></h2>
+                    <ul class="ticket-facts">
+                        <li><i class="fa-regular fa-clock" aria-hidden="true"></i> <?= e(date('g:i A', strtotime($next['event_time']))) ?></li>
+                        <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <?= e($next['venue']) ?></li>
+                        <li><i class="fa-solid fa-tag" aria-hidden="true"></i> <?= e(format_fee($next['fee'])) ?>, <?= e($next['categoryName'] ?? 'General') ?></li>
+                    </ul>
+                </div>
+                <img class="ticket-poster" src="<?= e(poster_url($next['poster_path'])) ?>" alt="">
+            </a>
+        <?php endif; ?>
+    </div>
+</section>
 
-    <?php include 'include/footer.php'; ?>
-</body>
-</html>
+<section class="section">
+    <div class="section-head">
+        <div>
+            <h2>Coming up</h2>
+            <p>The next events open to everyone.</p>
+        </div>
+        <a class="btn btn-secondary" href="browse_events.php">Browse all events</a>
+    </div>
+
+    <nav class="chips" aria-label="Categories">
+        <?php foreach ($categories as $c): ?>
+            <a class="chip" href="browse_events.php?category=<?= (int) $c['category_id'] ?>"><?= e($c['categoryName']) ?></a>
+        <?php endforeach; ?>
+    </nav>
+
+    <?php if ($upcoming): ?>
+        <div class="event-grid">
+            <?php foreach ($upcoming as $ev) { include ROOT_PATH . '/include/partials/event_card.php'; } ?>
+        </div>
+    <?php elseif (!$next): ?>
+        <div class="public-card empty-state">
+            <i class="fa-regular fa-calendar"></i>
+            <h3>No upcoming events right now</h3>
+            <p>New events are added all the time. Organising something? Publish it here.</p>
+            <a class="btn btn-primary" href="<?= is_logged_in() ? 'users/create_event.php' : 'auth/register.php' ?>">Create an event</a>
+        </div>
+    <?php endif; ?>
+</section>
+
+<?php include ROOT_PATH . '/include/layout/public_end.php'; ?>

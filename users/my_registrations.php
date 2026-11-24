@@ -1,119 +1,117 @@
 <?php
-
-require_once '../config.php';
-
+/**
+ * MyEvent - Events the current user has registered for.
+ */
+require_once __DIR__ . '/../config.php';
 
 require_login();
 
 $user_id = current_user_id();
-$user_role = $_SESSION['role'] ?? 'User';
 
-// Fetch joined events with specific details: date, venue, mode, and status
-$sql = "SELECT e.event_name, e.event_date, e.venue, e.mode, r.approval_status, r.event_id 
-        FROM registrations r 
-        JOIN events e ON r.event_id = e.event_id 
-        WHERE r.user_id = ? 
-        ORDER BY e.event_date ASC";
+// Cancel a registration (POST, CSRF-checked in config.php)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_registration'])) {
+    $event_id = (int) ($_POST['event_id'] ?? 0);
+    $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ? AND user_id = ?');
+    $stmt->bind_param('ii', $event_id, $user_id);
+    $stmt->execute();
+    $cancelled = $stmt->affected_rows > 0;
+    $stmt->close();
+    flash($cancelled ? 'success' : 'error', $cancelled ? 'Your registration has been cancelled.' : 'That registration was not found.');
+    redirect('users/my_registrations.php');
+}
 
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
+$show = ($_GET['show'] ?? 'upcoming') === 'past' ? 'past' : 'upcoming';
+$dateFilter = $show === 'past' ? 'e.event_date < CURDATE()' : 'e.event_date >= CURDATE()';
+$order = $show === 'past' ? 'DESC' : 'ASC';
+
+$total = (int) db_value($conn, "SELECT COUNT(*) FROM registrations r JOIN events e ON e.event_id = r.event_id WHERE r.user_id = ? AND $dateFilter", 'i', [$user_id]);
+$p = paginate($total, 10);
+
+$rows = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue, e.mode,
+            r.approval_status, r.attendance_status, r.registration_date
+     FROM registrations r JOIN events e ON e.event_id = r.event_id
+     WHERE r.user_id = ? AND $dateFilter
+     ORDER BY e.event_date $order
+     LIMIT ? OFFSET ?", 'iii', [$user_id, $p['per_page'], $p['offset']]);
+
+$page_title = 'My registrations';
+$nav_active = 'my_registrations';
+include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>My Registrations | <?php echo APP_NAME; ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_PATH_CSS; ?>admin.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; display: flex; }
-        
-        /* Sidebar Styling for high-contrast branding */
-        .sidebar { width: 250px; background: #1e293b; color: white; min-height: 100vh; position: fixed; }
-        .sidebar-header h2 { color: #ffffff !important; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        
-        .main-content { margin-left: 250px; flex-grow: 1; padding: 40px; width: 100%; }
-        
-        /* Registration Card Layout */
-        .reg-card { background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .event-info-grid { display: flex; gap: 20px; color: #64748b; font-size: 0.9rem; margin-top: 8px; }
-        
-        /* Status Badges */
-        .status-badge { padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
-        .status-Pending { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
-        .status-Approved { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .mode-tag { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.8rem; }
-        
-        /* Cancel Action */
-        .btn-cancel { color: #ef4444; background: #fff; border: 1px solid #fecaca; padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: 600; }
-        .btn-cancel:hover { background: #fee2e2; }
-    </style>
-</head>
-<body>
-    <aside class="sidebar">
-        <div class="sidebar-header" style="padding: 20px;">
-            <h2><?php echo APP_NAME; ?></h2>
-        </div>
-
-        <nav class="menu">
-            <a href="dashboard.php" class="menu-item"><i class="fas fa-chart-line"></i> Dashboard</a>
-            <a href="profile.php" class="menu-item"><i class="fas fa-user-circle"></i> My Profile</a>
-            
-            <?php if ($user_role !== 'Public'): ?>
-                <a href="my_events.php" class="menu-item"><i class="fas fa-calendar-check"></i> Manage My Events</a>
-                <a href="create_event.php" class="menu-item"><i class="fas fa-plus-circle"></i> Create New Event</a>
-            <?php endif; ?>
-            
-            <a href="my_registrations.php" class="menu-item active"><i class="fas fa-ticket-alt"></i> My Registrations</a>
-            
-            <a href="../index.php" class="menu-item"><i class="fas fa-home"></i> Back to Site</a>
-            <a href="../auth/logout.php" class="menu-item" style="color: #fb7185;"><i class="fas fa-sign-out-alt"></i> Logout</a>
-        </nav>
-    </aside>
-
-    <div class="main-content">
-        <?php include ROOT_PATH . '/include/flash.php'; ?>
-        <h2 style="color: #1e293b;">My Registered Events</h2>
-        <p style="color: #64748b; margin-bottom: 30px;">Track your status and manage your attendance list.</p>
-
-        <?php if ($result->num_rows > 0): ?>
-            <?php while($row = $result->fetch_assoc()): ?>
-                <div class="reg-card">
-                    <div style="flex: 1;">
-                        <span class="mode-tag"><i class="fas fa-vr-cardboard"></i> <?= e($row['mode']) ?></span>
-                        <h3 style="margin: 10px 0 5px 0; color: #1e293b;"><?= e($row['event_name']) ?></h3>
-                        
-                        <div class="event-info-grid">
-                            <span><i class="fas fa-calendar-alt"></i> <?= date('M d, Y', strtotime($row['event_date'])) ?></span>
-                            <span><i class="fas fa-map-marker-alt"></i> <?= e($row['venue']) ?></span>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; align-items: center; gap: 25px;">
-                        <span class="status-badge status-<?= e($row['approval_status']) ?>">
-                            <?= e($row['approval_status']) ?>
-                        </span>
-                        
-                        <form action="my_events.php" method="POST" onsubmit="return confirm('Cancel this registration? This spot will be released.');">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="event_id" value="<?= e($row['event_id']) ?>">
-                            <button type="submit" name="unregister_event" class="btn-cancel">
-                                <i class="fas fa-times-circle"></i> Cancel Spot
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <div style="text-align: center; padding: 60px; background: white; border-radius: 12px; border: 2px dashed #e2e8f0;">
-                <i class="fas fa-calendar-times fa-3x" style="color: #cbd5e1; margin-bottom: 15px;"></i>
-                <p style="color: #64748b; font-size: 1.1rem;">You haven't joined any events yet.</p>
-                <a href="../browse_events.php" style="color: #4f46e5; font-weight: bold; text-decoration: none; border-bottom: 2px solid #4f46e5;">Explore Events Now →</a>
-            </div>
-        <?php endif; ?>
+<div class="page-header">
+    <div>
+        <h1>My registrations</h1>
+        <p>Track approval status, download tickets and cancel spots you no longer need.</p>
     </div>
-</body>
-</html>
+    <div class="page-header-actions">
+        <a class="btn btn-<?= $show === 'upcoming' ? 'primary' : 'secondary' ?>" href="?show=upcoming">Upcoming</a>
+        <a class="btn btn-<?= $show === 'past' ? 'primary' : 'secondary' ?>" href="?show=past">Past</a>
+    </div>
+</div>
+
+<section class="card">
+    <?php if ($rows): ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Event</th>
+                        <th scope="col">Mode</th>
+                        <th scope="col">Status</th>
+                        <?php if ($show === 'past'): ?><th scope="col">Attendance</th><?php endif; ?>
+                        <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($rows as $row): ?>
+                    <tr>
+                        <td>
+                            <div class="event-cell">
+                                <?= datestub($row['event_date']) ?>
+                                <div>
+                                    <a class="event-cell-title" href="<?= e(BASE_URL) ?>event_detail.php?id=<?= (int) $row['event_id'] ?>"><?= e($row['event_name']) ?></a>
+                                    <div class="event-cell-meta"><?= e(date('g:i A', strtotime($row['event_time']))) ?>, <?= e($row['venue']) ?></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="cell-muted"><?= e($row['mode']) ?></td>
+                        <td><?= status_badge($row['approval_status']) ?></td>
+                        <?php if ($show === 'past'): ?><td><?= status_badge($row['attendance_status']) ?></td><?php endif; ?>
+                        <td class="actions">
+                            <?php if ($row['approval_status'] === 'Approved'): ?>
+                                <a class="btn btn-secondary btn-sm" href="generate_ticket.php?event_id=<?= (int) $row['event_id'] ?>" target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-ticket"></i> Ticket
+                                </a>
+                            <?php endif; ?>
+                            <?php if ($show === 'upcoming'): ?>
+                                <form method="POST" data-confirm="Cancel your registration for this event? Your spot will be released.">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="event_id" value="<?= (int) $row['event_id'] ?>">
+                                    <button type="submit" name="cancel_registration" value="1" class="btn btn-danger btn-sm">Cancel</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?= render_pagination($p, 'registrations') ?>
+    <?php else: ?>
+        <div class="empty-state">
+            <i class="fa-solid fa-ticket"></i>
+            <?php if ($show === 'past'): ?>
+                <h3>No past events yet</h3>
+                <p>Events you attended will be listed here.</p>
+            <?php else: ?>
+                <h3>You have no upcoming registrations</h3>
+                <p>Browse what is happening on campus and save your spot.</p>
+                <a class="btn btn-primary" href="<?= e(BASE_URL) ?>browse_events.php">Browse events</a>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+</section>
+
+<?php include ROOT_PATH . '/include/layout/app_end.php'; ?>

@@ -1,123 +1,97 @@
 <?php
+/**
+ * MyEvent Admin - Edit a user's name, email, category and role.
+ */
 require_once __DIR__ . '/../../config.php';
 
 require_admin();
 
 $id = (int) ($_GET['id'] ?? 0);
-$error = '';
-$success = '';
-
-// Fetch User Data
-if ($id) {
-    $stmt = $conn->prepare("SELECT * FROM users WHERE user_id = ?");
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
-    
-    if (!$user) {
-        flash('error', 'User not found.');
-        redirect('admin/users/manage.php');
-    }
-} else {
+$user = db_all($conn, 'SELECT user_id, name, email, phone, organization, category, role, created_at FROM users WHERE user_id = ?', 'i', [$id])[0] ?? null;
+if (!$user) {
+    flash('error', 'User not found.');
     redirect('admin/users/manage.php');
 }
 
-// Handle Update
+$error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = trim((string) ($_POST['name'] ?? ''));
-    $email = strtolower(trim((string) ($_POST['email'] ?? '')));
-    $role = (string) ($_POST['role'] ?? '');
+    $name     = trim((string) ($_POST['name'] ?? ''));
+    $email    = strtolower(trim((string) ($_POST['email'] ?? '')));
+    $role     = (string) ($_POST['role'] ?? '');
     $category = (string) ($_POST['category'] ?? '');
+    $user = array_merge($user, compact('name', 'email', 'role', 'category'));
 
     if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "A name and a valid email are required.";
+        $error = 'Enter a name and a valid email address.';
     } elseif (!in_array($role, ['User', 'Admin'], true) || !in_array($category, ['Student', 'Staff', 'Public'], true)) {
-        $error = "Please choose a valid role and category.";
+        $error = 'Choose a valid role and category.';
     } elseif ($id === current_user_id() && $role !== 'Admin') {
-        $error = "You cannot remove your own admin role.";
+        $error = 'You cannot remove your own admin role. Ask another administrator to do it.';
     } else {
-        $updateSql = "UPDATE users SET name=?, email=?, role=?, category=? WHERE user_id=?";
-        $stmt = $conn->prepare($updateSql);
-        $stmt->bind_param("ssssi", $name, $email, $role, $category, $id);
-        
+        $stmt = $conn->prepare('UPDATE users SET name = ?, email = ?, role = ?, category = ? WHERE user_id = ?');
+        $stmt->bind_param('ssssi', $name, $email, $role, $category, $id);
         try {
-            $ok = $stmt->execute();
+            $stmt->execute();
+            flash('success', 'Saved changes to ' . $name . '.');
+            redirect('admin/users/manage.php');
         } catch (mysqli_sql_exception $ex) {
-            if ($ex->getCode() !== 1062) { throw $ex; }
-            $ok = false;
-        }
-        if ($ok) {
-            $success = "User updated successfully!";
-            // Refresh user data for display
-            $user['name'] = $name;
-            $user['email'] = $email;
-            $user['role'] = $role;
-            $user['category'] = $category;
-        } else {
-            $error = "Could not update the user. The email may already be in use.";
+            if ($ex->getCode() !== 1062) {
+                throw $ex;
+            }
+            $error = 'Another account already uses that email address.';
         }
     }
 }
+
+$page_title = 'Edit user';
+$nav_active = 'admin_users';
+$nav_area   = 'admin';
+include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Edit User | MyEvent System</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        :root { --primary: #4f46e5; --bg-body: #f1f5f9; }
-        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-body); padding: 40px; }
-        .form-container { background: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: 20px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
-        .btn-save { background: var(--primary); color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; }
-        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
-        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .back-link { text-decoration: none; color: #64748b; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
-    </style>
-</head>
-<body>
-    <div style="max-width: 500px; margin: 0 auto;">
-        <a href="manage.php" class="back-link"><i class="fas fa-arrow-left"></i> Back to User List</a>
-        
-        <div class="form-container">
-            <h2 style="margin-top: 0; color: #1e293b;"><i class="fas fa-user-edit"></i> Edit User</h2>
-            
-            <?php if ($success): ?><div class="alert alert-success"><?= e($success) ?></div><?php endif; ?>
-            <?php if ($error): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
+<a class="back-link" href="manage.php"><i class="fa-solid fa-arrow-left"></i> Users</a>
+<div class="page-header">
+    <div>
+        <h1><?= e($user['name']) ?></h1>
+        <p>Member since <?= e(date('j F Y', strtotime($user['created_at']))) ?><?= $user['organization'] ? ', ' . e($user['organization']) : '' ?>.</p>
+    </div>
+</div>
 
-            <form method="POST">
-                <?= csrf_field() ?>
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" name="name" value="<?= e($user['name']) ?>" required>
-                </div>
+<?php if ($error): ?><div class="flash flash-error" role="alert"><?= e($error) ?></div><?php endif; ?>
 
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" name="email" value="<?= e($user['email']) ?>" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Role</label>
-                    <select name="role">
-                        <option value="User" <?= $user['role'] == 'User' ? 'selected' : '' ?>>User</option>
-                        <option value="Admin" <?= $user['role'] == 'Admin' ? 'selected' : '' ?>>Admin</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Category</label>
-                    <input type="text" name="category" value="<?= e($user['category']) ?>">
-                </div>
-
-                <button type="submit" class="btn-save">Update User Info</button>
-            </form>
+<form method="POST" class="card card-narrow">
+    <?= csrf_field() ?>
+    <div class="card-body">
+        <div class="form-grid">
+            <div class="field">
+                <label for="u-name">Full name</label>
+                <input id="u-name" type="text" name="name" value="<?= e($user['name']) ?>" maxlength="255" required>
+            </div>
+            <div class="field">
+                <label for="u-email">Email</label>
+                <input id="u-email" type="email" name="email" value="<?= e($user['email']) ?>" maxlength="255" required>
+            </div>
+            <div class="field">
+                <label for="u-cat">Category</label>
+                <select id="u-cat" name="category">
+                    <?php foreach (['Student', 'Staff', 'Public'] as $c): ?>
+                        <option<?= $user['category'] === $c ? ' selected' : '' ?>><?= $c ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="field">
+                <label for="u-role">Role</label>
+                <select id="u-role" name="role">
+                    <option value="User"<?= $user['role'] === 'User' ? ' selected' : '' ?>>User: can join and organise events</option>
+                    <option value="Admin"<?= $user['role'] === 'Admin' ? ' selected' : '' ?>>Admin: full access to every event and account</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-actions">
+            <a class="btn btn-ghost" href="manage.php">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save changes</button>
         </div>
     </div>
-</body>
-</html>
+</form>
+
+<?php include ROOT_PATH . '/include/layout/app_end.php'; ?>

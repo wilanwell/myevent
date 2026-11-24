@@ -1,0 +1,122 @@
+<?php
+/**
+ * Signed-in app layout (participant, organiser and admin areas): opening part.
+ *
+ * Set before including:
+ *   $page_title  string  Shown in the <title> and the top bar.
+ *   $nav_active  string  Key of the active sidebar link (see $nav below).
+ *   $nav_area    string  'user' (default) or 'admin'.
+ */
+$page_title = $page_title ?? APP_NAME;
+$nav_active = $nav_active ?? '';
+$nav_area   = $nav_area ?? 'user';
+
+$__uid    = current_user_id();
+$__me     = db_all($conn, 'SELECT name, profile_pic FROM users WHERE user_id = ?', 'i', [$__uid])[0]
+            ?? ['name' => $_SESSION['name'] ?? '', 'profile_pic' => null];
+$__unread = (int) db_value($conn, 'SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0', 'i', [$__uid]);
+$__avatar = avatar_url($__me['profile_pic']);
+
+$u = BASE_URL;
+if ($nav_area === 'admin') {
+    $nav = [
+        'Administration' => [
+            'admin_overview' => ['Overview',     'fa-gauge-high',    $u . 'admin/index.php'],
+            'admin_events'   => ['All events',   'fa-calendar-days', $u . 'admin/events/manage.php'],
+            'admin_create'   => ['Create event', 'fa-circle-plus',   $u . 'admin/events/create.php'],
+            'admin_users'    => ['Users',        'fa-users',         $u . 'admin/users/manage.php'],
+            'admin_profile'  => ['My profile',   'fa-user-gear',     $u . 'admin/profile.php'],
+        ],
+        'My account' => [
+            'dashboard'      => ['Participant view', 'fa-user',      $u . 'users/dashboard.php'],
+        ],
+    ];
+} else {
+    $nav = [
+        'Participate' => [
+            'dashboard'        => ['Dashboard',        'fa-house',             $u . 'users/dashboard.php'],
+            'browse'           => ['Browse events',    'fa-magnifying-glass',  $u . 'browse_events.php'],
+            'my_registrations' => ['My registrations', 'fa-ticket',            $u . 'users/my_registrations.php'],
+            'notifications'    => ['Notifications',    'fa-bell',              $u . 'users/notifications.php', $__unread],
+        ],
+        'Organise' => [
+            'my_events'        => ['My events',        'fa-calendar-check',    $u . 'users/my_events.php'],
+            'create_event'     => ['Create event',     'fa-circle-plus',       $u . 'users/create_event.php'],
+            'participants'     => ['Participants',     'fa-users-gear',        $u . 'users/manage_participants.php'],
+        ],
+        'Account' => [
+            'profile'          => ['My profile',       'fa-user-pen',          $u . 'users/profile.php'],
+        ],
+    ];
+    if (is_admin()) {
+        $nav['Account']['admin_overview'] = ['Admin panel', 'fa-shield-halved', $u . 'admin/index.php'];
+    }
+}
+$__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/profile.php';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= e($page_title) ?> | <?= e(APP_NAME) ?></title>
+    <link rel="icon" href="<?= e($u) ?>assets/img/logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=3">
+</head>
+<body class="app">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="sidebar-brand" href="<?= e($u) ?>index.php">
+        <img src="<?= e($u) ?>assets/img/logo.png" alt="">
+        <?= e(APP_NAME) ?>
+        <?php if ($nav_area === 'admin'): ?><small>Admin</small><?php endif; ?>
+    </a>
+    <nav class="sidebar-nav">
+        <?php foreach ($nav as $__group => $__links): ?>
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"><?= e($__group) ?></div>
+                <?php foreach ($__links as $__key => $__l): $__on = $__key === $nav_active; ?>
+                    <a class="nav-link<?= $__on ? ' is-active' : '' ?>" href="<?= e($__l[2]) ?>"<?= $__on ? ' aria-current="page"' : '' ?>>
+                        <i class="fa-solid <?= e($__l[1]) ?>" aria-hidden="true"></i><?= e($__l[0]) ?>
+                        <?php if (!empty($__l[3])): ?><span class="count"><?= (int) $__l[3] ?><span class="sr-only"> unread</span></span><?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php endforeach; ?>
+    </nav>
+    <div class="sidebar-footer">
+        <a class="nav-link" href="<?= e($u) ?>index.php"><i class="fa-solid fa-globe" aria-hidden="true"></i>Public site</a>
+        <a class="nav-link is-danger" href="<?= e($u) ?>auth/logout.php"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>Log out</a>
+    </div>
+</aside>
+<div class="scrim" data-nav-close></div>
+
+<div class="app-shell">
+    <header class="topbar">
+        <button type="button" class="icon-btn menu-toggle" data-nav-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Open menu">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <p class="topbar-title"><?= e($page_title) ?></p>
+        <div class="topbar-actions">
+            <a class="icon-btn" href="<?= e($u) ?>users/notifications.php" aria-label="Notifications<?= $__unread ? ' (' . $__unread . ' unread)' : '' ?>">
+                <i class="fa-regular fa-bell"></i>
+                <?php if ($__unread): ?><span class="dot"><?= $__unread > 9 ? '9+' : $__unread ?></span><?php endif; ?>
+            </a>
+            <a class="user-chip" href="<?= e($__profileUrl) ?>">
+                <?php if ($__avatar): ?>
+                    <img class="avatar" src="<?= e($__avatar) ?>" alt="">
+                <?php else: ?>
+                    <span class="avatar" aria-hidden="true"><?= e(initials($__me['name'])) ?></span>
+                <?php endif; ?>
+                <span class="user-chip-name"><?= e($__me['name']) ?></span>
+            </a>
+        </div>
+    </header>
+
+    <main class="app-main" id="main">
+        <?php include ROOT_PATH . '/include/flash.php'; ?>

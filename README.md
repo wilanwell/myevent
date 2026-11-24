@@ -39,14 +39,36 @@ Back up first (`mysqldump -u root myevent > backup.sql`).
 |---|---|
 | `config.php` | Bootstrap: `.env`, error handling, hardened session, DB connection, CSRF check for every POST |
 | `include/security.php` | `e()`, CSRF, `require_login()` / `require_admin()`, safe image upload, login throttling |
-| `include/helpers.php` | `poster_url()`, `avatar_url()`, fee/date helpers |
-| `include/flash.php` | Renders one-time flash messages |
-| `auth/` | Login, registration, logout |
-| `users/` | Participant & organiser pages |
-| `admin/` | Administrator pages |
+| `include/helpers.php` | Media URLs, fee/date helpers, `datestub()`, `status_badge()`, pagination, `db_all()` / `db_value()` |
+| `include/layout/` | `app_start` / `app_end` (signed-in pages with sidebar) and `public_start` / `public_end` (public pages) |
+| `include/partials/` | Reusable fragments: event card, profile form |
+| `include/event_editor.php` | Create/edit event screen shared by organisers and admins |
+| `include/participants_manager.php` | Review, check-in and CSV export screen shared by organisers and admins |
+| `assets/css/app.css` | Design system: tokens, layout shell and components |
+| `assets/css/public.css` | Public pages: hero, event cards, event detail, sign-in |
+| `assets/js/app.js` | Mobile menu, confirm dialogs, image preview, auto-submit filters |
+| `auth/`, `users/`, `admin/` | Pages. Each page sets `$page_title` / `$nav_active` and includes a layout |
 | `uploads/events`, `uploads/profiles` | User uploads (script execution blocked by `uploads/.htaccess`) |
 | `database/` | `schema.sql`, `seed.sql`, `migrations/` |
 | `storage/logs` | PHP error log (not web-accessible) |
+
+### Adding a page
+
+```php
+<?php
+require_once __DIR__ . '/../config.php';
+require_login();                       // or require_admin()
+
+$page_title = 'My page';
+$nav_active = 'dashboard';             // a key from include/layout/app_start.php
+include ROOT_PATH . '/include/layout/app_start.php';
+?>
+<div class="page-header"><div><h1>My page</h1></div></div>
+<section class="card"><div class="card-body">...</div></section>
+<?php include ROOT_PATH . '/include/layout/app_end.php'; ?>
+```
+
+Use the components in `app.css` (`card`, `table`, `btn`, `badge`, `field`, `empty-state`, `pagination`) instead of inline styles.
 
 ## Security conventions
 

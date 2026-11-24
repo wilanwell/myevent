@@ -1,218 +1,134 @@
-<?php 
-// 1. Start Session & Include Config
-require_once '../config.php'; 
+<?php
+/**
+ * MyEvent Admin - Overview
+ */
+require_once __DIR__ . '/../config.php';
 
-// 2. SECURITY CHECK
 require_admin();
 
-$admin_id = current_user_id();
+$stats = [
+    'users'    => (int) db_value($conn, 'SELECT COUNT(*) FROM users'),
+    'students' => (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE category = 'Student'"),
+    'staff'    => (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE category = 'Staff'"),
+    'upcoming' => (int) db_value($conn, 'SELECT COUNT(*) FROM events WHERE event_date >= CURDATE()'),
+    'events'   => (int) db_value($conn, 'SELECT COUNT(*) FROM events'),
+    'regs'     => (int) db_value($conn, 'SELECT COUNT(*) FROM registrations'),
+    'pending'  => (int) db_value($conn, "SELECT COUNT(*) FROM registrations WHERE approval_status = 'Pending'"),
+];
 
-/**
- * 3. HANDLE NOTIFICATIONS & STATUS UPDATES
- */
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['action_type']) && isset($_POST['reg_id'])) {
-        $reg_id = intval($_POST['reg_id']);
-        $action = $_POST['action_type'];
-        $sql = "";
-        $notif_message = "";
+$upcoming = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date, e.venue, e.max_participants, u.name AS organiser,
+            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Approved') AS approved,
+            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Pending') AS pending
+     FROM events e LEFT JOIN users u ON u.user_id = e.created_by
+     WHERE e.event_date >= CURDATE()
+     ORDER BY e.event_date ASC LIMIT 6");
 
-        $info_query = $conn->prepare("SELECT r.user_id, e.event_name FROM registrations r JOIN events e ON r.event_id = e.event_id WHERE r.reg_id = ?");
-        $info_query->bind_param("i", $reg_id);
-        $info_query->execute();
-        $info = $info_query->get_result()->fetch_assoc();
-        $target_student = $info['user_id'] ?? null;
-        $event_name = $info['event_name'] ?? '';
+$recent = db_all($conn,
+    'SELECT r.registration_date, r.approval_status, u.name, e.event_id, e.event_name
+     FROM registrations r JOIN users u ON u.user_id = r.user_id JOIN events e ON e.event_id = r.event_id
+     ORDER BY r.registration_date DESC, r.reg_id DESC LIMIT 6');
 
-        if ($action == 'approve') {
-            $sql = "UPDATE registrations SET approval_status='Approved' WHERE reg_id=?";
-            $notif_message = "✅ Your registration for <strong>$event_name</strong> has been Approved!";
-        } elseif ($action == 'reject') {
-            $sql = "UPDATE registrations SET approval_status='Rejected' WHERE reg_id=?";
-            $notif_message = "❌ Your registration for <strong>$event_name</strong> was Rejected.";
-        }
+$page_title = 'Overview';
+$nav_active = 'admin_overview';
+$nav_area   = 'admin';
+include ROOT_PATH . '/include/layout/app_start.php';
+?>
 
-        if ($sql != "" && $info) {
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("i", $reg_id);
-            if ($stmt->execute() && !empty($notif_message)) {
-                $ins_notif = $conn->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
-                $ins_notif->bind_param("is", $target_student, $notif_message);
-                $ins_notif->execute();
-                flash('success', 'Registration ' . ($action === 'approve' ? 'approved' : 'rejected') . '.');
-            }
-        }
-    }
+<div class="page-header">
+    <div>
+        <h1>Overview</h1>
+        <p>Activity across every event and account on <?= e(APP_NAME) ?>.</p>
+    </div>
+    <div class="page-header-actions">
+        <a class="btn btn-secondary" href="users/manage.php"><i class="fa-solid fa-users"></i> Users</a>
+        <a class="btn btn-primary" href="events/create.php"><i class="fa-solid fa-plus"></i> Create event</a>
+    </div>
+</div>
 
-    if (isset($_POST['delete_event_id'])) {
-        $delete_id = intval($_POST['delete_event_id']);
-        $stmt = $conn->prepare("DELETE FROM events WHERE event_id = ? AND created_by = ?");
-        $stmt->bind_param("ii", $delete_id, $admin_id);
-        $stmt->execute();
-        $stmt->close();
-        flash('success', 'Event deleted.');
-    }
+<div class="stats">
+    <a class="stat" href="users/manage.php">
+        <span class="stat-icon"><i class="fa-solid fa-users"></i></span>
+        <span><span class="stat-value"><?= $stats['users'] ?></span><br><span class="stat-label"><?= $stats['students'] ?> students, <?= $stats['staff'] ?> staff</span></span>
+    </a>
+    <a class="stat" href="events/manage.php">
+        <span class="stat-icon is-sky"><i class="fa-solid fa-calendar-days"></i></span>
+        <span><span class="stat-value"><?= $stats['upcoming'] ?></span><br><span class="stat-label">Upcoming of <?= $stats['events'] ?> events</span></span>
+    </a>
+    <div class="stat">
+        <span class="stat-icon is-green"><i class="fa-solid fa-ticket"></i></span>
+        <span><span class="stat-value"><?= $stats['regs'] ?></span><br><span class="stat-label">Registrations</span></span>
+    </div>
+    <div class="stat">
+        <span class="stat-icon is-amber"><i class="fa-regular fa-clock"></i></span>
+        <span><span class="stat-value"><?= $stats['pending'] ?></span><br><span class="stat-label">Waiting for organiser review</span></span>
+    </div>
+</div>
 
-    // Post/Redirect/Get: avoid re-submitting the form on refresh.
-    redirect('admin/index.php');
-}
+<div class="grid-2">
+    <section class="card">
+        <div class="card-header">
+            <h2 class="card-title">Coming up</h2>
+            <a class="btn btn-ghost btn-sm" href="events/manage.php">All events</a>
+        </div>
+        <?php if ($upcoming): ?>
+            <div class="table-wrap">
+                <table class="table">
+                    <tbody>
+                    <?php foreach ($upcoming as $row): ?>
+                        <tr>
+                            <td>
+                                <div class="event-cell">
+                                    <?= datestub($row['event_date']) ?>
+                                    <div>
+                                        <a class="event-cell-title" href="organizer/manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><?= e($row['event_name']) ?></a>
+                                        <div class="event-cell-meta"><?= e($row['organiser'] ?? 'No organiser') ?></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="num">
+                                <?= (int) $row['approved'] ?><?= (int) $row['max_participants'] > 0 ? ' / ' . (int) $row['max_participants'] : '' ?>
+                                <?php if ((int) $row['pending'] > 0): ?><br><span class="badge badge-warning"><?= (int) $row['pending'] ?> pending</span><?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state"><i class="fa-regular fa-calendar"></i><h3>No upcoming events</h3><a class="btn btn-primary" href="events/create.php">Create event</a></div>
+        <?php endif; ?>
+    </section>
 
-/**
- * 4. FETCH STATISTICS
- */
-$total_students = $conn->query("SELECT COUNT(*) as total FROM users WHERE category = 'Student'")->fetch_assoc()['total'];
-$total_staff = $conn->query("SELECT COUNT(*) as total FROM users WHERE category = 'Staff'")->fetch_assoc()['total'];
-$total_events = $conn->query("SELECT COUNT(*) as total FROM events")->fetch_assoc()['total'];
-$total_participants = $conn->query("SELECT COUNT(*) as total FROM registrations")->fetch_assoc()['total'];
+    <section class="card">
+        <div class="card-header">
+            <h2 class="card-title">Latest registrations</h2>
+        </div>
+        <?php if ($recent): ?>
+            <div class="table-wrap">
+                <table class="table">
+                    <tbody>
+                    <?php foreach ($recent as $row): ?>
+                        <tr>
+                            <td>
+                                <div class="event-cell person-cell">
+                                    <span class="avatar" aria-hidden="true"><?= e(initials($row['name'])) ?></span>
+                                    <div>
+                                        <div class="event-cell-title"><?= e($row['name']) ?></div>
+                                        <a class="event-cell-meta" href="organizer/manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><?= e($row['event_name']) ?></a>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="actions"><?= status_badge($row['approval_status']) ?><div class="cell-muted"><?= e(date('j M', strtotime($row['registration_date']))) ?></div></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php else: ?>
+            <div class="empty-state"><i class="fa-solid fa-ticket"></i><h3>No registrations yet</h3></div>
+        <?php endif; ?>
+    </section>
+</div>
 
-/**
- * 5. FETCH EVENTS ASSIGNED TO ADMIN
- */
-$sql_my_events = "SELECT e.event_id, e.event_name, e.event_date, e.venue, e.poster_path, e.mode, e.max_participants, c.categoryName,
-                  (SELECT COUNT(*) FROM registrations WHERE event_id = e.event_id AND approval_status = 'Approved') as current_reg 
-                  FROM events e 
-                  LEFT JOIN event_category c ON e.category_id = c.category_id 
-                  WHERE e.created_by = ?";
-$stmt = $conn->prepare($sql_my_events);
-$stmt->bind_param("i", $admin_id);
-$stmt->execute();
-$my_events = $stmt->get_result();
-?> 
-
-<!DOCTYPE html> 
-<html lang="en"> 
-<head> 
-  <meta charset="UTF-8" /> 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> 
-  <title>Admin Dashboard | <?php echo APP_NAME; ?></title> 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <style>
-      :root { --primary: #4f46e5; --sidebar-bg: #1e293b; --bg-body: #f1f5f9; }
-      body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg-body); display: flex; min-height: 100vh; }
-      .sidebar { width: 250px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; position: fixed; height: 100%; }
-      .sidebar-header h2 { color: #ffffff !important; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3); padding: 20px; margin: 0; text-align: center; border-bottom: 1px solid #334155; }
-      .nav-links { list-style: none; padding: 0; margin-top: 20px; }
-      .nav-links li a { display: block; padding: 15px 25px; color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 10px; transition: 0.3s; cursor: pointer; }
-      .nav-links li a:hover, .nav-links li a.active { background-color: var(--primary); color: white; }
-      .submenu-content { display: none; background: rgba(0,0,0,0.2); list-style: none; padding: 0; }
-      .submenu.open .submenu-content { display: block; }
-      .submenu-content a { padding: 10px 25px 10px 50px !important; font-size: 0.9rem; }
-      .main-content { margin-left: 250px; padding: 30px; width: 100%; box-sizing: border-box; }
-      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-      .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-      .number { font-size: 2rem; font-weight: 800; color: #1e293b; }
-      .table-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { padding: 15px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-      th { background: #f8fafc; color: #64748b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-      .btn-manage { background: var(--primary); color: white; padding: 8px 16px; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.85rem; }
-      .btn-delete { background: #dc2626; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 600; border: none; font-size: 0.85rem; cursor: pointer; }
-      .poster-img { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; }
-  </style>
-</head> 
-<body> 
-
-  <nav class="sidebar">
-    <div class="sidebar-header"><h2>MyEvent</h2></div>
-    <ul class="nav-links">
-      <li><a href="index.php" class="active"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
-      
-      <li><a href= "profile.php"><i class="fa-solid fa-user-circle"></i> My Profile</a></li>
-      
-      <li><a href="users/manage.php"><i class="fa-solid fa-users"></i> Manage Users</a></li>
-      <li class="submenu">
-        <a onclick="toggleMenu(this)"><i class="fa-solid fa-calendar-days"></i> Events <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; margin-left:auto;"></i></a>
-        <ul class="submenu-content">
-          <li><a href="events/manage.php">All Events</a></li>
-          <li><a href="events/create.php">Create New</a></li>
-        </ul>
-      </li>
-      <li><a href="../auth/logout.php" style="color:#fb7185; margin-top:20px; border-top:1px solid #334155;"><i class="fa-solid fa-sign-out-alt"></i> Logout</a></li>
-    </ul>
-  </nav>
-
-  <main class="main-content">
-    <?php include ROOT_PATH . '/include/flash.php'; ?>
-      <div class="header">
-          <h1>Admin Dashboard</h1>
-          <p style="color: #64748b;">Welcome, <?= e($_SESSION['name'] ?? 'Administrator') ?></p>
-      </div>
-
-      <div class="stats-grid">
-          <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Students</p><div class="number"><?= e($total_students) ?></div></div>
-              <i class="fas fa-user-graduate fa-2x" style="color:#4f46e5; opacity:0.2;"></i>
-          </div>
-          <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Staff</p><div class="number"><?= e($total_staff) ?></div></div>
-              <i class="fas fa-user-tie fa-2x" style="color:#6366f1; opacity:0.2;"></i>
-          </div>
-          <div class="card">
-              <div><p style="color:#64748b; margin:0;">Active Events</p><div class="number"><?= e($total_events) ?></div></div>
-              <i class="fas fa-calendar-check fa-2x" style="color:#10b981; opacity:0.2;"></i>
-          </div>
-          <div class="card">
-              <div><p style="color:#64748b; margin:0;">Total Registrations</p><div class="number"><?= e($total_participants) ?></div></div>
-              <i class="fas fa-users fa-2x" style="color:#f59e0b; opacity:0.2;"></i>
-          </div>
-      </div>
-
-      <div class="table-card">
-          <h3 style="margin-top:0; margin-bottom:20px;">My Assigned Events</h3>
-          <?php if($my_events->num_rows > 0): ?>
-              <table>
-                  <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Poster</th>
-                        <th>Event Name</th>
-                        <th>Category</th>
-                        <th>Date</th>
-                        <th>Venue</th>
-                        <th>Mode</th>
-                        <th>Capacity</th>
-                        <th>Actions</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      <?php while($row = $my_events->fetch_assoc()): ?>
-                          <tr>
-                              <td>#<?= e($row['event_id']) ?></td>
-                              <td>
-                                <img src="<?= e(poster_url($row['poster_path'])) ?>" class="poster-img" alt="<?= e($row['event_name'] ?? 'Event poster') ?>" loading="lazy">
-                              </td>
-                              <td><strong><?= e($row['event_name']); ?></strong></td>
-                              <td><?= e($row['categoryName'] ?? 'Uncategorized'); ?></td>
-                              <td><?= date('M d, Y', strtotime($row['event_date'])); ?></td>
-                              <td><?= e($row['venue']); ?></td>
-                              <td><span class="badge" style="background: #e0e7ff; color: #4338ca; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;"><?= e($row['mode']); ?></span></td>
-                              
-                              <td><?= e($row['current_reg']) ?> / <?= ($row['max_participants'] > 0) ? $row['max_participants'] : '∞'; ?></td>
-                              
-                              <td style="display: flex; gap: 8px;">
-                                  <a href="organizer/manage_participants.php?event_id=<?= e($row['event_id']) ?>" class="btn-manage">Manage</a>
-                                  
-                                  <form method="POST" onsubmit="return confirm('Permanently delete this event?');" style="display:inline;">
-                                      <?= csrf_field() ?>
-                                      <input type="hidden" name="delete_event_id" value="<?= e($row['event_id']) ?>">
-                                      <button type="submit" class="btn-delete">Delete</button>
-                                  </form>
-                              </td>
-                          </tr>
-                      <?php endwhile; ?>
-                  </tbody>
-              </table>
-          <?php else: ?>
-              <p style="text-align:center; color:#94a3b8; padding:20px;">No events created by you yet.</p>
-          <?php endif; ?>
-      </div>
-  </main>
-
-  <script>
-      function toggleMenu(link) {
-          link.parentElement.classList.toggle('open');
-      }
-  </script>
-
-</body> 
-</html>
+<?php include ROOT_PATH . '/include/layout/app_end.php'; ?>

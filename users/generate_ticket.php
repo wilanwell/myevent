@@ -1,95 +1,91 @@
 <?php
-
-require_once '../config.php';
+/**
+ * MyEvent - Printable ticket for an approved registration.
+ */
+require_once __DIR__ . '/../config.php';
 
 require_login();
 
-$user_id = current_user_id();
-$event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
-
-// Fetch user and event details to verify approval
-$sql = "SELECT e.*, u.name as user_name, r.registration_date 
-        FROM registrations r
-        JOIN events e ON r.event_id = e.event_id
-        JOIN users u ON r.user_id = u.user_id
-        WHERE r.event_id = ? AND r.user_id = ? AND r.approval_status = 'Approved'";
-
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("ii", $event_id, $user_id);
-$stmt->execute();
-$data = $stmt->get_result()->fetch_assoc();
+$event_id = (int) ($_GET['event_id'] ?? 0);
+$data = db_all($conn,
+    "SELECT e.event_name, e.event_date, e.event_time, e.venue, e.mode, e.remarks,
+            u.name AS user_name, u.email, r.reg_id, r.registration_date, org.name AS organiser
+     FROM registrations r
+     JOIN events e ON e.event_id = r.event_id
+     JOIN users u ON u.user_id = r.user_id
+     LEFT JOIN users org ON org.user_id = e.created_by
+     WHERE r.event_id = ? AND r.user_id = ? AND r.approval_status = 'Approved'",
+    'ii', [$event_id, current_user_id()])[0] ?? null;
 
 if (!$data) {
     flash('error', 'Your ticket is available once the organiser approves your registration.');
     redirect('users/my_registrations.php');
 }
+
+// Human-readable ticket code the organiser can match against the participant list.
+$code = sprintf('ME-%04d-%05d', $event_id, (int) $data['reg_id']);
+$ts = strtotime($data['event_date']);
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ticket - <?= e($data['event_name']) ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ticket: <?= e($data['event_name']) ?> | <?= e(APP_NAME) ?></title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=3">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=3">
     <style>
-        body { background: #f1f5f9; padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .ticket { border: 2px dashed #4f46e5; background: #ffffff; padding: 30px; width: 500px; margin: auto; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .header { text-align: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
-        .qr { float: right; width: 100px; height: 100px; background: #f8fafc; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; text-align: center; color: #64748b; }
-        .ticket-info p { margin: 10px 0; color: #1e293b; }
-        .label { color: #64748b; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; display: block; }
-        @media print { 
-            .no-print { display: none; } 
-            body { background: white; padding: 0; } 
-            .ticket { box-shadow: none; border: 2px solid #4f46e5; } 
+        body { padding: 40px 20px; }
+        .ticket-page { max-width: 640px; margin: 0 auto; }
+        .ticket-page .ticket { transform: none; box-shadow: 0 20px 40px -20px rgba(28, 33, 64, 0.35); border: 1px solid var(--line); }
+        .ticket-page .ticket-stub::before, .ticket-page .ticket-stub::after { background: var(--paper); }
+        .ticket-code { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .ticket-code b { font-size: var(--fs-xl); letter-spacing: 0.06em; color: var(--ink); font-variant-numeric: tabular-nums; }
+        .ticket-actions { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
+        .ticket-note { color: var(--muted); font-size: var(--fs-sm); margin-top: 16px; text-align: center; }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .ticket-actions { display: none; }
+            .ticket-page .ticket { box-shadow: none; }
+            .ticket-stub { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
 </head>
-<body>
-
-    <div class="no-print" style="text-align:center; margin-bottom: 20px;">
-        <button onclick="window.print()" style="background:#4f46e5; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold;">
-            <i class="fas fa-print"></i> Print Ticket
-        </button>
+<body class="app">
+<div class="ticket-page">
+    <div class="ticket-actions">
+        <a class="btn btn-ghost" href="my_registrations.php"><i class="fa-solid fa-arrow-left"></i> My registrations</a>
+        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print or save as PDF</button>
     </div>
 
-    <div class="ticket">
-        <div class="header">
-            <h2 style="margin:0; color:#4f46e5;"><?= APP_NAME ?> Official Ticket</h2>
-            <p style="margin:5px 0 0; color:#64748b; font-size:0.9rem;">Registration Date: <?= date('d M Y', strtotime($data['registration_date'])) ?></p>
+    <article class="ticket" aria-label="Ticket for <?= e($data['event_name']) ?>">
+        <div class="ticket-stub" aria-hidden="true">
+            <span class="ticket-weekday"><?= date('l', $ts) ?></span>
+            <span class="ticket-day"><?= date('j', $ts) ?></span>
+            <span class="ticket-month"><?= date('M Y', $ts) ?></span>
         </div>
-        
-        <div class="qr">SCAN AT<br>ENTRANCE</div>
-        
-        <div class="ticket-info">
-            <div style="margin-bottom: 15px;">
-                <span class="label">Event Name</span>
-                <h3 style="margin:0; color:#1e293b;"><?= e($data['event_name']) ?></h3>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <span class="label">Participant</span>
-                <p style="margin:0; font-weight:600;"><?= e($data['user_name']) ?></p>
-            </div>
-
-            <div style="display:flex; gap:30px; margin-bottom: 15px;">
-                <div>
-                    <span class="label">Date</span>
-                    <p style="margin:0; font-weight:600;"><?= date('l, d M Y', strtotime($data['event_date'])) ?></p>
-                </div>
-                <div>
-                    <span class="label">Time</span>
-                    <p style="margin:0; font-weight:600;"><?= date('h:i A', strtotime($data['event_time'])) ?></p>
-                </div>
-            </div>
-
-            <div>
-                <span class="label">Venue</span>
-                <p style="margin:0; font-weight:600;"><?= e($data['venue']) ?></p>
+        <div class="ticket-body">
+            <span class="ticket-label"><?= e(APP_NAME) ?> admission ticket</span>
+            <h1 class="ticket-title"><?= e($data['event_name']) ?></h1>
+            <ul class="ticket-facts">
+                <li><i class="fa-regular fa-calendar" aria-hidden="true"></i> <?= e(date('l, j F Y', $ts)) ?>, <?= e(date('g:i A', strtotime($data['event_time']))) ?></li>
+                <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <?= e($data['venue']) ?> (<?= e($data['mode']) ?>)</li>
+                <li><i class="fa-regular fa-user" aria-hidden="true"></i> <?= e($data['user_name']) ?>, <?= e($data['email']) ?></li>
+                <?php if ($data['organiser']): ?><li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Organised by <?= e($data['organiser']) ?></li><?php endif; ?>
+            </ul>
+            <div class="ticket-code">
+                <span><span class="cell-muted">Ticket code</span><br><b><?= e($code) ?></b></span>
+                <span><span class="cell-muted">Approved registration from</span><br><?= e(date('j M Y', strtotime($data['registration_date']))) ?></span>
             </div>
         </div>
+    </article>
 
-        <div style="margin-top:30px; border-top:1px solid #f1f5f9; padding-top:10px; text-align:center;">
-            <small style="color:#94a3b8;">Please bring a digital or printed copy of this pass.</small>
-        </div>
-    </div>
+    <?php if (trim((string) $data['remarks']) !== ''): ?>
+        <p class="ticket-note"><strong>Before you come:</strong> <?= e($data['remarks']) ?></p>
+    <?php endif; ?>
+    <p class="ticket-note">Show this ticket on your phone or printed at the entrance.</p>
+</div>
 </body>
 </html>

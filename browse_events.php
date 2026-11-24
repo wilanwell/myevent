@@ -1,85 +1,92 @@
 <?php
-require_once 'config.php';
+/**
+ * MyEvent - Browse and search public events.
+ */
+require_once __DIR__ . '/config.php';
 
-// Fix for the session notice
+$q        = trim((string) ($_GET['q'] ?? ''));
+$category = (int) ($_GET['category'] ?? ($_GET['category_id'] ?? 0));
+$show     = ($_GET['show'] ?? '') === 'all' ? 'all' : 'open';
 
-// 1. Get the category ID from the dropdown selection
-$cat_filter = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
-
-// 2. Simple SQL using only the events table
-$sql = "SELECT * FROM events WHERE visibility = 'Public' AND reg_close_date >= CURDATE()";
-
-if ($cat_filter > 0) {
-    $sql .= " AND category_id = " . $cat_filter;
+$where  = "e.visibility = 'Public' AND e.event_date >= CURDATE()";
+$types  = '';
+$params = [];
+if ($show === 'open') {
+    $where .= ' AND COALESCE(e.reg_close_date, e.event_date) >= CURDATE()';
+}
+if ($q !== '') {
+    $where .= ' AND (e.event_name LIKE ? OR e.venue LIKE ? OR e.description LIKE ?)';
+    $types .= 'sss';
+    $like = '%' . $q . '%';
+    array_push($params, $like, $like, $like);
+}
+if ($category > 0) {
+    $where .= ' AND e.category_id = ?';
+    $types .= 'i';
+    $params[] = $category;
 }
 
-$sql .= " ORDER BY event_date ASC";
-$result = $conn->query($sql);
+$from  = 'FROM events e LEFT JOIN event_category c ON c.category_id = e.category_id';
+$total = (int) db_value($conn, "SELECT COUNT(*) $from WHERE $where", $types, $params);
+$p     = paginate($total, 12);
+$events = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue, e.mode, e.fee, e.poster_path,
+            e.max_participants, e.reg_close_date, c.categoryName,
+            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status <> 'Rejected') AS taken
+     $from WHERE $where
+     ORDER BY e.event_date ASC, e.event_time ASC
+     LIMIT ? OFFSET ?", $types . 'ii', array_merge($params, [$p['per_page'], $p['offset']]));
+
+$categories = db_all($conn, 'SELECT category_id, categoryName FROM event_category ORDER BY categoryName');
+
+$page_title  = 'Browse events';
+$nav_current = 'browse';
+include ROOT_PATH . '/include/layout/public_start.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Browse Events | <?php echo APP_NAME; ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; padding: 40px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .filter-container { margin: 20px 0; background: white; padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .filter-select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; width: 250px; }
-        .btn-filter { background: #4f46e5; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
-        .event-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 4px solid #4f46e5; }
-        .btn-register { display: block; width: 100%; border: none; cursor: pointer; font-size: 1rem; background: #4f46e5; color: white; text-align: center; padding: 12px; border-radius: 6px; text-decoration: none; margin-top: 20px; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Available Events</h2>
-            <a href="users/dashboard.php" style="text-decoration: none; color: #4f46e5; font-weight: bold;">My Dashboard →</a>
+<section class="section">
+    <?php include ROOT_PATH . '/include/flash.php'; ?>
+    <div class="section-head">
+        <div>
+            <h1 class="page-title">Browse events</h1>
+            <p><?= $total ?> <?= $total === 1 ? 'event' : 'events' ?><?= $show === 'open' ? ' open for registration' : ' coming up' ?><?= $q !== '' ? ' matching "' . e($q) . '"' : '' ?>.</p>
         </div>
-        
-        <form action="" method="GET" class="filter-container">
-            <label style="font-weight: 600;">Filter by Type:</label>
-            <select name="category_id" class="filter-select">
-                <option value="0">-- All Categories --</option>
-                <option value="1" <?= $cat_filter == 1 ? 'selected' : '' ?>>Workshop</option>
-                <option value="2" <?= $cat_filter == 2 ? 'selected' : '' ?>>Seminar</option>
-                <option value="3" <?= $cat_filter == 3 ? 'selected' : '' ?>>Competition</option>
-                <option value="4" <?= $cat_filter == 4 ? 'selected' : '' ?>>Festival</option>
-                <option value="5" <?= $cat_filter == 5 ? 'selected' : '' ?>>Sport</option>
-                <option value="6" <?= $cat_filter == 6 ? 'selected' : '' ?>>Course</option>
+        <form class="toolbar toolbar-end" method="GET" role="search">
+            <?php if ($category): ?><input type="hidden" name="category" value="<?= $category ?>"><?php endif; ?>
+            <label class="search-box">
+                <span class="sr-only">Search events</span>
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Name, venue or topic">
+            </label>
+            <label class="sr-only" for="b-show">Show</label>
+            <select id="b-show" class="input" name="show" data-autosubmit>
+                <option value="open"<?= $show === 'open' ? ' selected' : '' ?>>Open for registration</option>
+                <option value="all"<?= $show === 'all' ? ' selected' : '' ?>>All upcoming</option>
             </select>
-            <button type="submit" class="btn-filter">Apply Filter</button>
-            <?php if($cat_filter > 0): ?>
-                <a href="browse_events.php" style="color: #ef4444; text-decoration: none; font-size: 0.9rem;">Clear</a>
-            <?php endif; ?>
+            <button class="btn btn-primary" type="submit">Search</button>
         </form>
-
-        <div class="event-grid">
-            <?php if ($result && $result->num_rows > 0): ?>
-                <?php while($row = $result->fetch_assoc()): ?>
-                    <div class="event-card">
-                        <h3><?= e($row['event_name']) ?></h3>
-                        <p style="color: #64748b;"><i class="fas fa-calendar"></i> <?= date('M d, Y', strtotime($row['event_date'])) ?></p>
-                        <p style="color: #64748b;"><i class="fas fa-map-marker-alt"></i> <?= e($row['venue']) ?></p>
-                        <p style="color: #64748b;"><i class="fas fa-tag"></i> Fee: <?= e(format_fee($row['fee'])) ?></p>
-                        
-                        <form action="users/register_event.php" method="POST">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="event_id" value="<?= (int) $row['event_id'] ?>">
-                            <button type="submit" class="btn-register">Register for Event</button>
-                        </form>
-                    </div>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background: white; border-radius: 12px;">
-                    <p style="color: #64748b;">No events found in this category.</p>
-                </div>
-            <?php endif; ?>
-        </div>
     </div>
-</body>
-</html>
+
+    <nav class="chips" aria-label="Categories">
+        <a class="chip<?= $category === 0 ? ' is-active' : '' ?>" href="<?= e(url_with(['category' => null, 'category_id' => null, 'page' => null])) ?>"<?= $category === 0 ? ' aria-current="true"' : '' ?>>All categories</a>
+        <?php foreach ($categories as $c): $on = $category === (int) $c['category_id']; ?>
+            <a class="chip<?= $on ? ' is-active' : '' ?>" href="<?= e(url_with(['category' => (int) $c['category_id'], 'category_id' => null, 'page' => null])) ?>"<?= $on ? ' aria-current="true"' : '' ?>><?= e($c['categoryName']) ?></a>
+        <?php endforeach; ?>
+    </nav>
+
+    <?php if ($events): ?>
+        <div class="event-grid">
+            <?php foreach ($events as $ev) { include ROOT_PATH . '/include/partials/event_card.php'; } ?>
+        </div>
+        <?= render_pagination($p, 'events') ?>
+    <?php else: ?>
+        <div class="public-card empty-state">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <h3>No events match your search</h3>
+            <p>Try another keyword or category, or include events that have closed registration.</p>
+            <a class="btn btn-secondary" href="browse_events.php">Clear filters</a>
+        </div>
+    <?php endif; ?>
+</section>
+
+<?php include ROOT_PATH . '/include/layout/public_end.php'; ?>

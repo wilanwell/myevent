@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="No poster available">
+  <rect width="800" height="450" fill="#eef0fe"/>
+  <g transform="translate(400 205)" fill="none" stroke="#4f46e5" stroke-opacity="0.55" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="-80" y="-62" width="160" height="140" rx="16"/>
+    <line x1="-80" y1="-20" x2="80" y2="-20"/>
+    <line x1="-40" y1="-84" x2="-40" y2="-44"/>
+    <line x1="40" y1="-84" x2="40" y2="-44"/>
+    <circle cx="0" cy="28" r="6" fill="#4f46e5" fill-opacity="0.55" stroke="none"/>
+  </g>
+  <text x="400" y="345" text-anchor="middle" font-family="Figtree, system-ui, sans-serif" font-size="26" font-weight="600" fill="#4f46e5" fill-opacity="0.7">Poster coming soon</text>
+</svg>

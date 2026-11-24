@@ -1,179 +1,164 @@
 <?php
-// 1. Start Session & Include Config
-require_once '../../config.php'; 
+/**
+ * MyEvent Admin - Users: search, filter, export and manage accounts.
+ */
+require_once __DIR__ . '/../../config.php';
 
 require_admin();
 
-// 3. HANDLE CSV DOWNLOAD
-if (isset($_POST['download_csv'])) {
-    ob_clean(); 
+$q        = trim((string) ($_GET['q'] ?? ''));
+$category = in_array($_GET['category'] ?? '', ['Student', 'Staff', 'Public'], true) ? $_GET['category'] : '';
+$role     = in_array($_GET['role'] ?? '', ['Admin', 'User'], true) ? $_GET['role'] : '';
+
+$where  = '1 = 1';
+$types  = '';
+$params = [];
+if ($q !== '') {
+    $where .= ' AND (u.name LIKE ? OR u.email LIKE ? OR u.organization LIKE ?)';
+    $types .= 'sss';
+    $like = '%' . $q . '%';
+    array_push($params, $like, $like, $like);
+}
+if ($category !== '') {
+    $where .= ' AND u.category = ?';
+    $types .= 's';
+    $params[] = $category;
+}
+if ($role !== '') {
+    $where .= ' AND u.role = ?';
+    $types .= 's';
+    $params[] = $role;
+}
+
+// CSV export of the current filter
+if (($_GET['export'] ?? '') === 'csv') {
+    $rows = db_all($conn,
+        "SELECT u.user_id, u.name, u.email, u.phone, u.organization, u.category, u.role, u.created_at
+         FROM users u WHERE $where ORDER BY u.created_at DESC", $types, $params);
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=users_list_' . date('Y-m-d') . '.csv');
-    
-    $output = fopen('php://output', 'w');
-    fputcsv($output, array('User ID', 'Name', 'Email', 'Role', 'Category', 'Joined Date'));
-    
-    $query = "SELECT user_id, name, email, role, category, created_at FROM users ORDER BY created_at DESC";
-    $rows = $conn->query($query);
-    
-    while ($row = $rows->fetch_assoc()) {
-        fputcsv($output, csv_row($row));
+    header('Content-Disposition: attachment; filename="' . safe_filename('users_' . date('Y-m-d')) . '"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+    fputcsv($out, ['User ID', 'Name', 'Email', 'Phone', 'Organisation', 'Category', 'Role', 'Joined']);
+    foreach ($rows as $row) {
+        fputcsv($out, csv_row($row));
     }
-    fclose($output);
+    fclose($out);
     exit;
 }
 
-// 4. FETCH ALL USERS FOR TABLE
-$sql = "SELECT user_id, name, email, role, category, created_at FROM users ORDER BY created_at DESC";
-$result = $conn->query($sql);
+$total = (int) db_value($conn, "SELECT COUNT(*) FROM users u WHERE $where", $types, $params);
+$p = paginate($total, 15);
+$users = db_all($conn,
+    "SELECT u.user_id, u.name, u.email, u.organization, u.category, u.role, u.created_at, u.profile_pic,
+            (SELECT COUNT(*) FROM events e WHERE e.created_by = u.user_id) AS organised,
+            (SELECT COUNT(*) FROM registrations r WHERE r.user_id = u.user_id) AS joined
+     FROM users u WHERE $where
+     ORDER BY u.created_at DESC
+     LIMIT ? OFFSET ?", $types . 'ii', array_merge($params, [$p['per_page'], $p['offset']]));
 
-// 5. FETCH UNIQUE CATEGORIES FOR FILTER
-$cat_query = "SELECT DISTINCT category FROM users WHERE category IS NOT NULL AND category != ''";
-$cat_result = $conn->query($cat_query);
+$me = current_user_id();
+$page_title = 'Users';
+$nav_active = 'admin_users';
+$nav_area   = 'admin';
+include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Manage Users | MyEvent System</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        :root { --primary: #0d6efd; --sidebar-bg: #343a40; --bg-body: #f1f5f9; --danger: #dc3545; --warning: #ffc107; --success: #198754; --pdf: #e11d48; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg-body); margin: 0; display: flex; }
-        .sidebar { width: 250px; background: var(--sidebar-bg); color: #fff; height: 100vh; padding: 20px; position: fixed; }
-        .main-content { margin-left: 250px; flex: 1; padding: 30px; overflow-y: auto; }
-        .table-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .search-container { display: flex; gap: 15px; margin: 20px 0; align-items: center; }
-        .search-input { padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; flex: 1; font-size: 0.9rem; }
-        .filter-select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; background: white; }
-        
-        /* Button Styles */
-        .btn-group { display: flex; gap: 10px; }
-        .btn-action { border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: white; transition: 0.3s; }
-        .btn-csv { background: var(--success); }
-        .btn-pdf { background: var(--pdf); }
-        .btn-action:hover { opacity: 0.85; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; padding: 12px; background: #f8f9fa; color: #6c757d; border-bottom: 2px solid #dee2e6; }
-        td { padding: 12px; border-bottom: 1px solid #dee2e6; color: #495057; vertical-align: middle; }
-        
-        /* PDF PRINT STYLES */
-        @media print {
-            .sidebar, .search-container, .btn-group, .actions-col, .fa-edit, .fa-trash, th:last-child, td:last-child { display: none !important; }
-            .main-content { margin-left: 0; padding: 0; width: 100%; }
-            .table-card { box-shadow: none; border: none; }
-            body { background: white; }
-            table { width: 100%; border: 1px solid #000; }
-            th, td { border: 1px solid #000; padding: 8px; font-size: 10pt; }
-            .badge { border: 1px solid #000; background: none !important; color: black !important; }
-            h2::after { content: " - Official Campus Record"; font-size: 12pt; }
-        }
-    </style>
-</head>
-<body>
-
-<aside class="sidebar">
-    <h3>MyEvent Admin</h3>
-    <p><a href="../index.php" style="color:white; text-decoration:none;"><i class="fas fa-arrow-left"></i> Back to Dashboard</a></p>
-</aside>
-
-<main class="main-content">
-    <?php include ROOT_PATH . '/include/flash.php'; ?>
-    <div class="table-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2><i class="fas fa-users"></i> Manage Registered Users</h2>
-            
-            <div class="btn-group">
-                <form method="POST" style="margin:0;">
-                    <?= csrf_field() ?>
-                    <button type="submit" name="download_csv" class="btn-action btn-csv">
-                        <i class="fas fa-file-csv"></i> CSV
-                    </button>
-                </form>
-                <button onclick="window.print()" class="btn-action btn-pdf">
-                    <i class="fas fa-file-pdf"></i> PDF
-                </button>
-            </div>
-        </div>
-        
-        <p>Total Registered: <?php echo $result->num_rows; ?></p>
-
-        <div class="search-container">
-            <input type="text" id="userInput" class="search-input" placeholder="Search by name or email...">
-            <select id="categoryFilter" class="filter-select">
-                <option value="">All Categories</option>
-                <?php while($cat = $cat_result->fetch_assoc()): ?>
-                    <option value="<?= e($cat['category']) ?>"><?= e($cat['category']) ?></option>
-                <?php endwhile; ?>
-            </select>
-        </div>
-
-        <table id="userTable">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Category</th>
-                    <th>Role</th>
-                    <th>Joined Date</th>
-                    <th class="actions-col">Actions</th> 
-                </tr>
-            </thead>
-            <tbody>
-                <?php while($user = $result->fetch_assoc()): ?>
-                <tr class="user-row">
-                    <td><?= e($user['user_id']) ?></td>
-                    <td class="user-name"><strong><?php echo e($user['name']); ?></strong></td>
-                    <td class="user-email"><?php echo e($user['email']); ?></td>
-                    <td class="user-category"><?php echo e($user['category']); ?></td>
-                    <td class="user-role">
-                        <span class="badge badge-<?php echo strtolower($user['role']); ?>">
-                            <?= e($user['role']) ?>
-                        </span>
-                    </td>
-                    <td><?php echo date('Y-m-d', strtotime($user['created_at'])); ?></td>
-                    <td class="actions-col">
-                        <a href="edit.php?id=<?= e($user['user_id']) ?>" style="color: var(--warning); margin-right: 10px;"><i class="fas fa-edit"></i></a>
-                        <form action="delete.php" method="POST" style="display:inline;" onsubmit="return confirm('Delete this user permanently?');">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="id" value="<?= (int) $user['user_id'] ?>">
-                            <button type="submit" style="color: var(--danger); background:none; border:none; cursor:pointer; padding:0;" aria-label="Delete user"><i class="fas fa-trash"></i></button>
-                        </form>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+<div class="page-header">
+    <div>
+        <h1>Users</h1>
+        <p>Everyone with a <?= e(APP_NAME) ?> account. Change roles or remove accounts here.</p>
     </div>
-</main>
+    <div class="page-header-actions">
+        <a class="btn btn-secondary" href="<?= e(url_with(['export' => 'csv', 'page' => null])) ?>"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
+    </div>
+</div>
 
-<script>
-    const searchInput = document.getElementById('userInput');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const rows = document.querySelectorAll('.user-row');
+<section class="card">
+    <div class="card-header">
+        <form class="toolbar" method="GET" role="search">
+            <label class="search-box">
+                <span class="sr-only">Search users</span>
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Name, email or organisation">
+            </label>
+            <label class="sr-only" for="u-cat">Category</label>
+            <select id="u-cat" class="input" name="category" data-autosubmit>
+                <option value="">All categories</option>
+                <?php foreach (['Student', 'Staff', 'Public'] as $c): ?>
+                    <option<?= $category === $c ? ' selected' : '' ?>><?= $c ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label class="sr-only" for="u-role">Role</label>
+            <select id="u-role" class="input" name="role" data-autosubmit>
+                <option value="">All roles</option>
+                <?php foreach (['User', 'Admin'] as $r): ?>
+                    <option<?= $role === $r ? ' selected' : '' ?>><?= $r ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-secondary" type="submit">Apply</button>
+            <?php if ($q !== '' || $category !== '' || $role !== ''): ?><a class="btn btn-ghost" href="manage.php">Clear</a><?php endif; ?>
+        </form>
+    </div>
 
-    function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const selectedCategory = categoryFilter.value.toLowerCase();
+    <?php if ($users): ?>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">User</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Role</th>
+                        <th scope="col" class="num">Organised</th>
+                        <th scope="col" class="num">Joined</th>
+                        <th scope="col">Member since</th>
+                        <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($users as $user): $av = avatar_url($user['profile_pic']); ?>
+                    <tr>
+                        <td>
+                            <div class="event-cell person-cell">
+                                <?php if ($av): ?>
+                                    <img class="avatar" src="<?= e($av) ?>" alt="">
+                                <?php else: ?>
+                                    <span class="avatar" aria-hidden="true"><?= e(initials($user['name'])) ?></span>
+                                <?php endif; ?>
+                                <div>
+                                    <div class="event-cell-title"><?= e($user['name']) ?><?= (int) $user['user_id'] === $me ? ' <span class="cell-muted">(you)</span>' : '' ?></div>
+                                    <div class="event-cell-meta"><?= e($user['email']) ?></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="cell-muted"><?= e($user['category']) ?></td>
+                        <td><?= status_badge($user['role']) ?></td>
+                        <td class="num"><?= (int) $user['organised'] ?></td>
+                        <td class="num"><?= (int) $user['joined'] ?></td>
+                        <td class="cell-muted"><?= e(date('j M Y', strtotime($user['created_at']))) ?></td>
+                        <td class="actions">
+                            <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $user['user_id'] ?>" title="Edit user" aria-label="Edit <?= e($user['name']) ?>"><i class="fa-solid fa-pen"></i></a>
+                            <?php if ((int) $user['user_id'] !== $me): ?>
+                                <form action="delete.php" method="POST" data-confirm="Delete <?= e($user['name']) ?>? Their registrations will be removed and their events will have no organiser.">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $user['user_id'] ?>">
+                                    <button type="submit" class="btn btn-danger btn-icon" title="Delete user" aria-label="Delete <?= e($user['name']) ?>"><i class="fa-solid fa-trash-can"></i></button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?= render_pagination($p, 'users') ?>
+    <?php else: ?>
+        <div class="empty-state">
+            <i class="fa-solid fa-user-slash"></i>
+            <h3>No users match these filters</h3>
+            <a class="btn btn-secondary" href="manage.php">Clear filters</a>
+        </div>
+    <?php endif; ?>
+</section>
 
-        rows.forEach(row => {
-            const name = row.querySelector('.user-name').textContent.toLowerCase();
-            const email = row.querySelector('.user-email').textContent.toLowerCase();
-            const category = row.querySelector('.user-category').textContent.trim().toLowerCase();
-
-            const matchesSearch = name.includes(searchTerm) || email.includes(searchTerm);
-            const matchesCategory = selectedCategory === "" || category === selectedCategory;
-
-            row.style.display = (matchesSearch && matchesCategory) ? "" : "none";
-        });
-    }
-
-    searchInput.addEventListener('keyup', filterTable);
-    categoryFilter.addEventListener('change', filterTable);
-</script>
-
-</body>
-</html>
+<?php include ROOT_PATH . '/include/layout/app_end.php'; ?>
