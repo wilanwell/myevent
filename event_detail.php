@@ -44,7 +44,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
         <?php include ROOT_PATH . '/include/flash.php'; ?>
         <a class="back-link" href="browse_events.php"><i class="fa-solid fa-arrow-left"></i> All events</a>
     </div>
-    <article>
+    <header class="detail-head">
         <img class="detail-poster" src="<?= e(poster_url($event['poster_path'])) ?>" alt="Poster for <?= e($event['event_name']) ?>">
 
         <div class="badge-row">
@@ -54,7 +54,9 @@ include ROOT_PATH . '/include/layout/public_start.php';
         </div>
         <h1 class="detail-title"><?= e($event['event_name']) ?></h1>
         <p class="detail-organiser">Organised by <?= e($event['organizer_name'] ?? APP_NAME) ?></p>
+    </header>
 
+    <article class="detail-body">
         <?php if (trim((string) $event['description']) !== ''): ?>
             <section class="detail-section">
                 <h2>About this event</h2>

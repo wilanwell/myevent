@@ -149,7 +149,14 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     max-width: 1280px; margin: 0 auto; padding: var(--sp-8) var(--sp-8) var(--sp-16);
     display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: var(--sp-10); align-items: start;
 }
-.detail-top { grid-column: 1 / -1; margin-bottom: calc(-1 * var(--sp-6)); }
+/* Desktop: info card sits to the right of both the header and the body.
+   Mobile (single column): header, then the info card, then the body. */
+.detail { grid-template-areas: "top top" "head aside" "body aside"; grid-template-rows: auto auto 1fr; row-gap: 0; }
+.detail-top  { grid-area: top; margin-bottom: var(--sp-4); }
+.detail-head { grid-area: head; }
+.detail-body { grid-area: body; }
+.detail-aside { grid-area: aside; align-self: start; }
+.detail-body:empty { display: none; }
 .detail-top .back-link { margin-bottom: 0; }
 .btn-stack { display: grid; gap: var(--sp-2); }
 .detail-poster { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 22px; border: 1px solid var(--line); background: var(--blue-tint); }
@@ -212,7 +219,9 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1000px) {
-    .hero-inner, .detail, .auth { grid-template-columns: 1fr; }
+    .hero-inner, .auth { grid-template-columns: 1fr; }
+    .detail { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "head" "aside" "body"; grid-template-rows: none; }
+    .detail-aside { margin-top: var(--sp-6); }
     .hero { padding: var(--sp-10) var(--sp-5) var(--sp-12); }
     .hero-board { padding: var(--sp-8) var(--sp-5); }
     .ticket { transform: none; max-width: 540px; margin: 0 auto; }
@@ -235,7 +244,7 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     .ticket { grid-template-columns: 90px 1fr; }
     .ticket-day { font-size: 2.5rem; }
     .section { padding: var(--sp-8) var(--sp-4) var(--sp-12); }
-    .detail { padding: var(--sp-6) var(--sp-4) var(--sp-12); gap: var(--sp-8); }
+    .detail { padding: var(--sp-6) var(--sp-4) var(--sp-12); }
     .auth-main { padding: var(--sp-10) var(--sp-4); }
     .site-footer-inner { padding: var(--sp-5) var(--sp-4); }
 }
