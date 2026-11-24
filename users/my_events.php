@@ -109,7 +109,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <td><?= status_badge($row['visibility']) ?></td>
                         <td class="num">
                             <?= (int) $row['taken'] ?> / <?= (int) $row['max_participants'] > 0 ? (int) $row['max_participants'] : '&infin;' ?>
-                            <?php if ((int) $row['pending'] > 0): ?><br><span class="badge badge-warning"><?= (int) $row['pending'] ?> to review</span><?php endif; ?>
+                            <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning cell-sub"><?= (int) $row['pending'] ?> to review</span><?php endif; ?>
                         </td>
                         <td class="actions">
                             <a class="btn btn-secondary btn-sm" href="manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-solid fa-users"></i> Participants</a>

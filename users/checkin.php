@@ -71,14 +71,14 @@ include ROOT_PATH . '/include/layout/app_start.php';
 <div class="grid-2">
     <section class="card">
         <div class="card-header"><h2 class="card-title">Ticket</h2></div>
-        <div class="card-body">
+        <div class="card-body stack">
             <?php if ($problem): ?>
                 <div class="status-box flash-error" role="alert"><i class="fa-solid fa-circle-xmark"></i> <?= e($problem) ?></div>
             <?php endif; ?>
 
             <?php if ($reg): ?>
                 <?php $present = $reg['attendance_status'] === 'Present'; ?>
-                <div class="event-cell" style="margin-bottom:16px">
+                <div class="event-cell">
                     <span class="avatar avatar-lg" aria-hidden="true"><?= e(initials($reg['name'])) ?></span>
                     <div>
                         <div class="card-title"><?= e($reg['name']) ?></div>
@@ -99,7 +99,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                     </form>
                 <?php endif; ?>
 
-                <p class="cell-muted" style="margin-top:16px">
+                <p class="cell-muted no-margin">
                     <a href="manage_participants.php?event_id=<?= (int) $reg['event_id'] ?>">Open participant list</a>
                 </p>
             <?php elseif (!$problem): ?>

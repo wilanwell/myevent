@@ -24,7 +24,7 @@ PW='Qa-Test-Pass1'
 PASSED=0
 FAILED=0
 
-sql()  { "$MYSQL" -uroot "$DB" -N -e "$1"; }
+sql()  { "$MYSQL" -uroot "$DB" -N -e "$1" | tr -d '\r'; }   # strip CR from Windows mysql output
 pass() { echo "PASS  $1"; PASSED=$((PASSED + 1)); }
 fail() { echo "FAIL  $1"; FAILED=$((FAILED + 1)); }
 check(){ if eval "$2"; then pass "$1"; else fail "$1"; fi; }

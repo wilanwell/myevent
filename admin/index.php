@@ -88,7 +88,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                             </td>
                             <td class="num">
                                 <?= (int) $row['approved'] ?><?= (int) $row['max_participants'] > 0 ? ' / ' . (int) $row['max_participants'] : '' ?>
-                                <?php if ((int) $row['pending'] > 0): ?><br><span class="badge badge-warning"><?= (int) $row['pending'] ?> pending</span><?php endif; ?>
+                                <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning cell-sub"><?= (int) $row['pending'] ?> pending</span><?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

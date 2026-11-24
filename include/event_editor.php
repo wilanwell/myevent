@@ -134,7 +134,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
 <a class="back-link" href="<?= e($editor_cancel) ?>"><i class="fa-solid fa-arrow-left"></i> Back</a>
-<div class="page-header">
+<div class="page-header card-narrow">
     <div>
         <h1><?= $editing ? 'Edit event' : 'Create an event' ?></h1>
         <p><?= $editing ? 'Changes are visible to participants straight away.' : 'Fill in the details participants need to decide and register.' ?></p>
@@ -142,7 +142,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
 </div>
 
 <?php if ($errors): ?>
-    <div class="flash flash-error" role="alert">Please fix the highlighted fields and try again.</div>
+    <div class="flash flash-error card-narrow" role="alert">Please fix the highlighted fields and try again.</div>
 <?php endif; ?>
 
 <form method="POST" enctype="multipart/form-data" class="card card-narrow" novalidate>

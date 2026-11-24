@@ -19,7 +19,7 @@ $nav_area = 'user';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<div class="page-header">
+<div class="page-header card-narrow">
     <div>
         <h1>My profile</h1>
         <p>Keep your contact details up to date so organisers can reach you.</p>

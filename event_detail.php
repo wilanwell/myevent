@@ -40,9 +40,11 @@ include ROOT_PATH . '/include/layout/public_start.php';
 ?>
 
 <div class="detail">
-    <article>
+    <div class="detail-top">
         <?php include ROOT_PATH . '/include/flash.php'; ?>
         <a class="back-link" href="browse_events.php"><i class="fa-solid fa-arrow-left"></i> All events</a>
+    </div>
+    <article>
         <img class="detail-poster" src="<?= e(poster_url($event['poster_path'])) ?>" alt="Poster for <?= e($event['event_name']) ?>">
 
         <div class="badge-row">
@@ -85,11 +87,13 @@ include ROOT_PATH . '/include/layout/public_start.php';
             <?php endif; ?>
 
             <?php if ($is_owner): ?>
-                <a class="btn btn-primary btn-block" href="users/manage_participants.php?event_id=<?= $event_id ?>"><i class="fa-solid fa-users"></i> Manage participants</a>
-                <a class="btn btn-secondary btn-block" href="users/edit_event.php?id=<?= $event_id ?>">Edit event</a>
+                <div class="btn-stack">
+                    <a class="btn btn-primary btn-block" href="users/manage_participants.php?event_id=<?= $event_id ?>"><i class="fa-solid fa-users"></i> Manage participants</a>
+                    <a class="btn btn-secondary btn-block" href="users/edit_event.php?id=<?= $event_id ?>">Edit event</a>
+                </div>
             <?php elseif ($status === 'Approved'): ?>
                 <div class="status-box flash-success"><i class="fa-solid fa-circle-check"></i> You are registered and approved.</div>
-                <a class="btn btn-primary btn-block" href="users/generate_ticket.php?event_id=<?= $event_id ?>" target="_blank" rel="noopener"><i class="fa-solid fa-ticket"></i> View ticket</a>
+                <a class="btn btn-primary btn-block btn-lg" href="users/generate_ticket.php?event_id=<?= $event_id ?>" target="_blank" rel="noopener"><i class="fa-solid fa-ticket"></i> View ticket</a>
             <?php elseif ($status === 'Pending'): ?>
                 <div class="status-box flash-info"><i class="fa-regular fa-clock"></i> Registered. Waiting for the organiser to approve.</div>
             <?php elseif ($status === 'Rejected'): ?>
@@ -102,11 +106,11 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <form action="users/register_event.php" method="POST">
                     <?= csrf_field() ?>
                     <input type="hidden" name="event_id" value="<?= $event_id ?>">
-                    <button type="submit" class="btn btn-primary btn-block">Register for this event</button>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">Register for this event</button>
                 </form>
                 <p class="cell-muted no-margin">The organiser reviews each registration. You will get a notification when it is approved.</p>
             <?php else: ?>
-                <a class="btn btn-primary btn-block" href="auth/login.php">Log in to register</a>
+                <a class="btn btn-primary btn-block btn-lg" href="auth/login.php">Log in to register</a>
                 <p class="cell-muted no-margin">New here? <a href="auth/register.php">Create a free account</a>.</p>
             <?php endif; ?>
         </div>

@@ -35,7 +35,7 @@ $nav_active = 'notifications';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<div class="page-header">
+<div class="page-header card-narrow">
     <div>
         <h1>Notifications</h1>
         <p>Updates about your registrations and the events you organise.</p>

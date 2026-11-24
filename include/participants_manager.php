@@ -192,7 +192,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                 </div>
                             </div>
                         </td>
-                        <td class="cell-muted"><?= e(date('j M Y', strtotime($row['registration_date']))) ?><br><span title="Ticket code"><?= e(ticket_code($event_id, (int) $row['reg_id'])) ?></span></td>
+                        <td class="cell-muted"><?= e(date('j M Y', strtotime($row['registration_date']))) ?><span class="cell-sub" title="Ticket code"><?= e(ticket_code($event_id, (int) $row['reg_id'])) ?></span></td>
                         <td><?= status_badge($row['approval_status']) ?></td>
                         <td>
                             <?php if ($row['approval_status'] === 'Approved'): ?>

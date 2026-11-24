@@ -58,14 +58,14 @@ include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
 <a class="back-link" href="manage.php"><i class="fa-solid fa-arrow-left"></i> Users</a>
-<div class="page-header">
+<div class="page-header card-narrow">
     <div>
         <h1><?= e($user['name']) ?></h1>
         <p>Member since <?= e(date('j F Y', strtotime($user['created_at']))) ?><?= $user['organization'] ? ', ' . e($user['organization']) : '' ?>.</p>
     </div>
 </div>
 
-<?php if ($error): ?><div class="flash flash-error" role="alert"><?= e($error) ?></div><?php endif; ?>
+<?php if ($error): ?><div class="flash flash-error card-narrow" role="alert"><?= e($error) ?></div><?php endif; ?>
 
 <form method="POST" class="card card-narrow">
     <?= csrf_field() ?>
