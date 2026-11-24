@@ -9,6 +9,6 @@
         </span>
     </div>
 </footer>
-<script src="<?= e(BASE_URL) ?>assets/js/app.js?v=3" defer></script>
+<script src="<?= e(BASE_URL) ?>assets/js/app.js?v=4" defer></script>
 </body>
 </html>

@@ -65,9 +65,9 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
     <link rel="icon" href="<?= e($u) ?>assets/img/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=3">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=4">
 </head>
 <body class="app">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -107,6 +107,11 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
             <i class="fa-solid fa-bars"></i>
         </button>
         <p class="topbar-title"><?= e($page_title) ?></p>
+        <form class="topbar-search" action="<?= e($u) ?>browse_events.php" method="GET" role="search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <label class="sr-only" for="topbar-q">Search events</label>
+            <input id="topbar-q" type="search" name="q" placeholder="Search events, venues or topics">
+        </form>
         <div class="topbar-actions">
             <a class="icon-btn" href="<?= e($u) ?>users/notifications.php" aria-label="Notifications<?= $__unread ? ' (' . $__unread . ' unread)' : '' ?>">
                 <i class="fa-regular fa-bell"></i>

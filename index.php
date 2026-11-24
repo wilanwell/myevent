@@ -41,6 +41,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
         </div>
 
         <?php if ($next): $ts = strtotime($next['event_date']); ?>
+          <div class="hero-board">
             <a class="ticket" href="event_detail.php?id=<?= (int) $next['event_id'] ?>" aria-label="Next up: <?= e($next['event_name']) ?>">
                 <div class="ticket-stub" aria-hidden="true">
                     <span class="ticket-weekday"><?= date('l', $ts) ?></span>
@@ -58,6 +59,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 </div>
                 <img class="ticket-poster" src="<?= e(poster_url($next['poster_path'])) ?>" alt="">
             </a>
+          </div>
         <?php endif; ?>
     </div>
 </section>

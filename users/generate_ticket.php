@@ -33,10 +33,10 @@ $ts = strtotime($data['event_date']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ticket: <?= e($data['event_name']) ?> | <?= e(APP_NAME) ?></title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=3">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=3">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=4">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=4">
     <style>
         body { padding: 40px 20px; }
         .ticket-page { max-width: 640px; margin: 0 auto; }
