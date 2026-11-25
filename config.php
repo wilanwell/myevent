@@ -122,7 +122,8 @@ if (!headers_sent()) {
 }
 
 /* --- 5. Hardened session -------------------------------------------- */
-if (session_status() === PHP_SESSION_NONE) {
+// Command-line scripts (tools/, tests) have no cookies, so they get no session.
+if (session_status() === PHP_SESSION_NONE && PHP_SAPI !== 'cli') {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_name('MYEVENTSESSID');

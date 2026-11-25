@@ -37,6 +37,7 @@ expose_php = Off
 Upload everything **except** local data:
 
 - do **not** upload `.env`, `storage/logs/*`, `storage/backups/*`, `storage/mail/*`, `uploads/events/*`, `uploads/profiles/*`
+- `vendor/` (test tools from Composer) is not needed on the server; `.htaccess` blocks it, `tests/` and `.github/` anyway
 - **do** upload the `.htaccess` files (they are hidden on some systems; enable "show hidden files")
 
 With Git on the server: `git clone <your-repo> myevent` — `.gitignore` already excludes the local data above.
@@ -199,6 +200,7 @@ Fix every **FAIL**. Then point an uptime monitor at `https://events.example.edu.
 
 ## 10. Updating later
 
+0. Make sure the new version passes its checks: CI is green, or `bash tests/run.sh` passes locally (see README, Tests).
 1. `php tools/backup.php` (always back up first).
 2. Upload the new code (or `git pull`). Keep your `.env` and `uploads/`.
 3. Apply any new files in `database/migrations/` in name order, using an admin database account.

@@ -321,14 +321,16 @@ function ics_escape(string $text): string
 function ics_fold(string $line): string
 {
     $out = '';
-    while (strlen($line) > 75) {
-        $cut = 75;
+    $limit = 75; // continuation lines start with a space, which counts towards the 75
+    while (strlen($line) > $limit) {
+        $cut = $limit;
         // do not split a multi-byte UTF-8 character
         while ($cut > 0 && (ord($line[$cut]) & 0xC0) === 0x80) {
             $cut--;
         }
         $out .= substr($line, 0, $cut) . "\r\n ";
         $line = substr($line, $cut);
+        $limit = 74;
     }
     return $out . $line;
 }

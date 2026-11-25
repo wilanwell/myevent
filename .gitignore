@@ -1,6 +1,10 @@
 # Local environment (contains credentials)
 .env
 
+# Composer dependencies and PHPUnit cache
+/vendor/
+.phpunit.cache/
+
 # Runtime data
 storage/logs/*
 !storage/logs/.gitkeep

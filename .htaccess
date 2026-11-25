@@ -5,7 +5,7 @@ DirectoryIndex index.php
 
 # --- Block private files ---------------------------------------------------
 # Environment files, SQL dumps, logs, docs, VCS metadata and shell scripts.
-<FilesMatch "^\.|\.(sql|gz|log|md|example|ini|sh|lock|json|dist)$">
+<FilesMatch "^\.|\.(sql|gz|log|md|example|ini|sh|lock|json|dist|xml|xsd|yml|yaml|phar)$">
     Require all denied
 </FilesMatch>
 
@@ -13,7 +13,7 @@ DirectoryIndex index.php
 # .htaccess; this is a second layer and covers hosts that ignore nested files.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(\.git|include|storage|database|tests|tools)(/|$) - [R=404,L]
+    RewriteRule ^(\.git|\.github|include|storage|database|tests|tools|vendor)(/|$) - [R=404,L]
 </IfModule>
 
 # --- Performance -------------------------------------------------------------

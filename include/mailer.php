@@ -3,7 +3,7 @@
  * MyEvent - Minimal mailer (no external libraries).
  *
  * MAIL_DRIVER in .env:
- *   log   Write each message to storage/mail/*.eml (development default).
+ *   log   Write each message to storage/mail/*.eml (development default; MAIL_LOG_DIR overrides the folder).
  *   smtp  Send through an SMTP server with STARTTLS ("tls", port 587) or implicit TLS ("ssl", port 465)
  *         and AUTH LOGIN. Works with Gmail app passwords, Outlook, Mailtrap, SES, etc.
  */
@@ -53,7 +53,7 @@ function send_mail(string $to, string $subject, string $text, ?string $html = nu
         if (env('MAIL_DRIVER', 'log') === 'smtp') {
             smtp_send($fromEmail, $to, $message);
         } else {
-            $dir = ROOT_PATH . '/storage/mail';
+            $dir = (string) env('MAIL_LOG_DIR', ROOT_PATH . '/storage/mail');
             if (!is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }

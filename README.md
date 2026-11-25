@@ -97,12 +97,48 @@ testing on a phone over Wi-Fi set `APP_URL` to the computer's LAN address, e.g. 
 
 ## Tests
 
-End-to-end checks of security rules and the main workflows (HTTP level, against the running app):
+Three layers, all run by CI (`.github/workflows/ci.yml`) on every push and pull request:
+
+| Layer | What it covers | Needs |
+|---|---|---|
+| **Lint** `php tools/lint.php` | Every PHP file parses | PHP only |
+| **PHPUnit** `vendor/bin/phpunit` | 86 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log | MySQL/MariaDB |
+| **End-to-end** `bash tests/e2e.sh` | 71 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
+
+### First time
+
+Install [Composer](https://getcomposer.org/download/), then in the project folder:
 ```
-bash tests/e2e.sh
+composer install
 ```
-It creates throwaway `qa_*@example.test` accounts and removes them afterwards.
-Override `BASE`, `MYSQL` or `DB` with environment variables if your setup differs.
+(XAMPP without Composer on PATH: `C:\xampp\php\php.exe -d extension=zip composer.phar install`.)
+`vendor/` holds test tools only; the app itself does not need it, so a production server can skip this step.
+
+### Running
+
+```
+bash tests/run.sh          # lint + PHPUnit + end-to-end, like CI
+bash tests/run.sh --fast   # lint + PHPUnit only (no web server needed)
+vendor/bin/phpunit --testsuite unit          # just the fast unit tests
+vendor/bin/phpunit --filter Waitlist         # one area
+```
+On Windows prefix the PHP commands with `C:\xampp\php\php.exe` (for example `C:\xampp\php\php.exe vendor\bin\phpunit`).
+
+**Your data is safe.** PHPUnit uses a separate database, `myevent_test`, which it drops and rebuilds from
+`database/schema.sql` at the start of every run (it refuses any name that does not end in `_test`). The host
+and credentials come from `.env`, or from `DB_HOST` / `DB_USERNAME` / `DB_PASSWORD` in the environment.
+Test emails go to a temporary folder, never to `storage/mail`.
+The end-to-end suite runs against the real app and database: it creates throwaway `qa_*@example.test`
+accounts and removes them afterwards. Override `BASE`, `MYSQL`, `MYSQL_OPTS`, `DB` or `PHP` if your setup differs.
+
+### Writing a test
+
+- Pure functions go in `tests/Unit` (extend `PHPUnit\Framework\TestCase`).
+- Anything that reads or writes the database goes in `tests/Integration` and extends
+  `MyEvent\Tests\Support\DatabaseTestCase`: every test starts with empty tables; create rows with
+  `makeUser()`, `makeEvent()`, `register()` and `joinWaitlist()`.
+- Assert on emails with `MyEvent\Tests\Support\MailSpy::messages()` / `recipients()`.
+- New table or column? Update `database/schema.sql` (the tests build from it) as well as adding a migration.
 
 ## Project layout
 
@@ -123,7 +159,10 @@ Override `BASE`, `MYSQL` or `DB` with environment variables if your setup differ
 | `database/` | `schema.sql`, `seed.sql`, `migrations/` |
 | `include/mailer.php` | `send_mail()` with log and SMTP drivers |
 | `admin/audit.php` | Audit log of deletions, role changes, approvals, check-ins and password resets |
-| `tests/e2e.sh` | End-to-end test suite |
+| `tests/Unit`, `tests/Integration` | PHPUnit tests (`phpunit.xml`; helpers in `tests/Support`) |
+| `tests/e2e.sh`, `tests/run.sh` | End-to-end suite; runner for every check |
+| `.github/workflows/ci.yml` | CI: lint, PHPUnit on PHP 8.2 and 8.3, end-to-end under Apache |
+| `tools/lint.php` | Syntax check of every PHP file |
 | `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
 | `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
 | `tools/send_mail.php` | Delivers queued emails and day-before reminders (cron every 5 minutes) |

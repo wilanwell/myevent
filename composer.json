@@ -1,0 +1,33 @@
+{
+    "name": "myevent/myevent",
+    "description": "MyEvent - campus event management system",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "ext-mysqli": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-fileinfo": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MyEvent\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration",
+        "lint": "@php tools/lint.php"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2.12"
+        }
+    }
+}

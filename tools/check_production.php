@@ -106,7 +106,7 @@ $latest && filemtime($latest[0]) > time() - 2 * 86400
 section('Over HTTP (' . BASE_URL . ')');
 $ctx = stream_context_create(['http' => ['method' => 'HEAD', 'ignore_errors' => true, 'timeout' => 5, 'follow_location' => 0],
                               'ssl' => ['verify_peer' => true]]);
-foreach (['.env', 'storage/logs/php-error.log', 'include/security.php', 'database/schema.sql', 'tools/backup.php'] as $path) {
+foreach (['.env', 'storage/logs/php-error.log', 'include/security.php', 'database/schema.sql', 'tools/backup.php', 'vendor/autoload.php', 'phpunit.xml', 'composer.json'] as $path) {
     $headers = @get_headers(BASE_URL . $path, false, $ctx);
     if (!$headers) {
         report('WARN', "Could not reach $path to test it", 'Run this check on the server, or check the URL by hand.');
