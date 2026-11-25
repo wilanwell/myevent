@@ -81,6 +81,15 @@ filter_var(env('MAIL_FROM', ''), FILTER_VALIDATE_EMAIL) && !str_ends_with((strin
     ? report('PASS', 'MAIL_FROM is ' . env('MAIL_FROM'))
     : report($isLocal ? 'WARN' : 'FAIL', 'MAIL_FROM is not a real address (' . env('MAIL_FROM', 'unset') . ')');
 
+$stuck = (int) db_value($conn, "SELECT COUNT(*) FROM mail_queue WHERE status = 'pending' AND created_at < NOW() - INTERVAL 30 MINUTE");
+$stuck
+    ? report('FAIL', "$stuck queued email(s) waiting more than 30 minutes", 'The mail worker is not running: schedule php tools/send_mail.php every 5 minutes.')
+    : report('PASS', 'Email queue is moving');
+$failed = (int) db_value($conn, "SELECT COUNT(*) FROM mail_queue WHERE status = 'failed' AND created_at > NOW() - INTERVAL 7 DAY");
+$failed
+    ? report('WARN', "$failed email(s) failed in the last 7 days", 'See mail_queue.last_error (usually a wrong SMTP password or a rejected From address).')
+    : report('PASS', 'No failed emails in the last 7 days');
+
 section('Files');
 foreach (['storage/logs', 'storage/backups', POSTER_DIR, AVATAR_DIR] as $dir) {
     is_writable(ROOT_PATH . '/' . $dir) ? report('PASS', "$dir is writable") : report('FAIL', "$dir is not writable by PHP");

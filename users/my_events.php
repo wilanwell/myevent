@@ -14,13 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_event'])) {
     $owned = db_all($conn, 'SELECT event_name, poster_path FROM events WHERE event_id = ? AND created_by = ?', 'ii', [$target_id, $user_id])[0] ?? null;
 
     if ($owned) {
+        $told = notify_event_cancelled($conn, $target_id);
         $stmt = $conn->prepare('DELETE FROM events WHERE event_id = ? AND created_by = ?');
         $stmt->bind_param('ii', $target_id, $user_id);
         $stmt->execute();
         $stmt->close();
         delete_upload($owned['poster_path'], POSTER_DIR);
         audit($conn, 'event.delete', 'event', $target_id, $owned['event_name']);
-        flash('success', 'Event deleted.');
+        flash('success', 'Event deleted.' . ($told ? " We let {$told} registered " . ($told === 1 ? 'person' : 'people') . ' know it is cancelled.' : ''));
     } else {
         flash('error', 'You can only delete events you organise.');
     }

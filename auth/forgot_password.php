@@ -46,7 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   . "$link\n\n"
                   . "If you did not ask for this, you can ignore this email. Your password will not change.\n\n"
                   . "- " . APP_NAME;
-            send_mail($user['email'], 'Reset your ' . APP_NAME . ' password', $body);
+            send_mail($user['email'], 'Reset your ' . APP_NAME . ' password', $body, email_html(
+                'Reset your password',
+                "Hi {$user['name']},\n\nWe received a request to reset the password for your " . APP_NAME . ' account. The link works once and expires in ' . RESET_TTL_MINUTES . ' minutes.',
+                'Choose a new password', $link, [],
+                'If you did not ask for this, ignore this email. Your password will not change.'));
 
             // Development convenience: with the log mail driver there is no inbox, so show where the email went.
             if (DEBUG_MODE && env('MAIL_DRIVER', 'log') === 'log') {

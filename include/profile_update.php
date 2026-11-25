@@ -68,6 +68,12 @@ function handle_profile_update(mysqli $conn, string $backPath): void
     $types  = 'sssss';
     $params = [$name, $phone, $organization, $bio, implode(', ', $interests)];
 
+    if (isset($_POST['email_settings'])) {
+        $sql .= ', email_participant = ?, email_organiser = ?';
+        $types .= 'ii';
+        array_push($params, isset($_POST['email_participant']) ? 1 : 0, isset($_POST['email_organiser']) ? 1 : 0);
+    }
+
     if ($newPic) {
         $sql .= ', profile_pic = ?';
         $types .= 's';

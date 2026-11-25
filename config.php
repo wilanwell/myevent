@@ -55,6 +55,7 @@ ini_set('error_log', APP_ROOT . '/storage/logs/php-error.log');
 require_once APP_ROOT . '/include/security.php';
 require_once APP_ROOT . '/include/helpers.php';
 require_once APP_ROOT . '/include/mailer.php';
+require_once APP_ROOT . '/include/notify.php';
 require_once APP_ROOT . '/include/waitlist.php';
 
 set_exception_handler(function (Throwable $ex) {

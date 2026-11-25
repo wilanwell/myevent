@@ -54,7 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         send_mail($reset['email'], 'Your ' . APP_NAME . ' password was changed',
             "Hi {$reset['name']},\n\nThe password for your " . APP_NAME . " account was just changed.\n\n"
             . "If this was not you, reset it again straight away and contact an administrator:\n"
-            . BASE_URL . "auth/forgot_password.php\n\n- " . APP_NAME);
+            . BASE_URL . "auth/forgot_password.php\n\n- " . APP_NAME,
+            email_html('Your password was changed',
+                "Hi {$reset['name']},\n\nThe password for your " . APP_NAME . " account was just changed. If this was you, there is nothing else to do.",
+                'Not you? Reset it now', BASE_URL . 'auth/forgot_password.php', [],
+                'If you did not change your password, reset it straight away and tell an administrator.'));
 
         flash('success', 'Your password has been changed. Log in with your new password.');
         $_SESSION['old_email'] = $reset['email'];

@@ -47,11 +47,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($notice) {
-        $msg = sprintf($notice, $pm_event['event_name']);
-        $stmt = $conn->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
-        $stmt->bind_param('is', $reg['user_id'], $msg);
-        $stmt->execute();
-        $stmt->close();
+        $full = db_all($conn, 'SELECT event_id, event_name, event_date, event_time, end_time, venue, mode FROM events WHERE event_id = ?', 'i', [$event_id])[0];
+        $email = $action === 'approve' ? [
+            'subject' => "You're in: " . $full['event_name'],
+            'heading' => 'Your registration is approved',
+            'intro'   => "Good news: the organiser approved your place at {$full['event_name']}. Your ticket with its QR code is ready.",
+            'facts'   => event_facts($full),
+            'button'  => ['View my ticket', BASE_URL . 'users/generate_ticket.php?event_id=' . $event_id],
+            'footnote' => 'Show the ticket on your phone or printed at the entrance.',
+        ] : [
+            'subject' => 'Registration update: ' . $full['event_name'],
+            'heading' => 'Your registration was not approved',
+            'intro'   => "The organiser was not able to offer you a place at {$full['event_name']} this time.",
+            'button'  => ['Browse other events', BASE_URL . 'browse_events.php'],
+        ];
+        notify_user($conn, (int) $reg['user_id'], sprintf($notice, $full['event_name']), 'participant', $email);
     }
     flash('success', $done . (!empty($promotedCount) ? ' ' . $promotedCount . ' ' . ($promotedCount === 1 ? 'person' : 'people') . ' moved up from the waitlist.' : ''));
     redirect($self . (isset($_GET['status']) ? '&status=' . urlencode((string) $_GET['status']) : ''));

@@ -625,3 +625,12 @@ a.badge:hover { filter: brightness(0.97); }
 
 .rate-prompt { border-color: var(--saffron); box-shadow: inset 4px 0 0 var(--saffron), var(--shadow-sm); margin-bottom: var(--gutter); }
 .rate-prompt + .grid-2 { margin-top: 0; }
+
+/* Toggle rows (email preferences) */
+.toggle-list { display: grid; gap: var(--sp-3); }
+.toggle { display: flex; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; }
+.toggle:hover { border-color: var(--line-hover); }
+.toggle:has(input:checked) { border-color: var(--blue-line); background: var(--blue-tint); }
+.toggle input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--primary); flex: none; }
+.toggle b { display: block; color: var(--ink); font-weight: 600; }
+.toggle .hint { display: block; margin-top: var(--sp-1); color: var(--muted); font-size: var(--fs-xs); }

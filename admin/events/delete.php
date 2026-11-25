@@ -21,6 +21,8 @@ if (!$event) {
     redirect('admin/events/manage.php');
 }
 
+$told = notify_event_cancelled($conn, $event_id);
+
 $conn->begin_transaction();
 try {
     $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ?');
@@ -42,5 +44,5 @@ try {
 delete_upload($event['poster_path'], POSTER_DIR);
 audit($conn, 'event.delete', 'event', $event_id, $event['event_name']);
 
-flash('success', 'Event and all associated registrations deleted.');
+flash('success', 'Event and all associated registrations deleted.' . ($told ? " {$told} registered " . ($told === 1 ? 'person was' : 'people were') . ' told it is cancelled.' : ''));
 redirect('admin/events/manage.php');

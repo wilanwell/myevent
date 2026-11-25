@@ -86,7 +86,13 @@ try {
 
     if (!empty($event['created_by'])) {
         $student = $_SESSION['name'] ?? 'A participant';
-        notify($conn, (int) $event['created_by'], "📩 <strong>{$student}</strong> has registered for: <strong>{$event['event_name']}</strong>.");
+        notify_user($conn, (int) $event['created_by'], "📩 <strong>{$student}</strong> has registered for: <strong>{$event['event_name']}</strong>.", 'organiser', [
+            'subject' => "New registration: {$event['event_name']}",
+            'heading' => 'Someone registered for your event',
+            'intro'   => "{$student} registered for {$event['event_name']} and is waiting for your approval."
+                       . ($event['capacity'] > 0 ? ' ' . ($event['taken'] + 1) . " of {$event['capacity']} places are now taken." : ''),
+            'button'  => ['Review participants', BASE_URL . 'users/manage_participants.php?event_id=' . $event_id],
+        ]);
     }
     $conn->commit();
 } catch (Throwable $ex) {

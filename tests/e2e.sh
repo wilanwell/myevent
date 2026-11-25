@@ -39,11 +39,19 @@ cleanup() {
          DELETE FROM events WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE 'qa\\_%@example.test');
          DELETE FROM users WHERE email LIKE 'qa\\_%@example.test';
          DELETE FROM login_attempts WHERE email LIKE 'qa\\_%' OR email = 'x@x.test';
-         DELETE FROM audit_log WHERE actor_name LIKE 'QA %' OR details LIKE '%QA %' OR details LIKE '%qa\_%@example.test%';"
+         DELETE FROM audit_log WHERE actor_name LIKE 'QA %' OR details LIKE '%QA %' OR details LIKE '%qa\_%@example.test%';
+         DELETE FROM mail_queue WHERE to_email LIKE 'qa\\_%@example.test';"
+    # Development mailbox copies addressed to test accounts
+    grep -l '^To: qa_[a-z]*@example.test' "$ROOT"/storage/mail/*.txt 2>/dev/null | while read -r f; do
+        rm -f "${f%.txt}" "$f" "${f%.txt}.html"
+    done
     rm -rf "${WORK:?}"
 }
 trap cleanup EXIT
 cleanup >/dev/null 2>&1; WORK=$(mktemp -d)
+PHP=${PHP:-/c/xampp/php/php.exe}
+# Count development emails to $1 whose subject starts with $2.
+mails() { grep -l "^To: $1" "$ROOT"/storage/mail/*.txt 2>/dev/null | xargs -r grep -l "^Subject: $2" 2>/dev/null | wc -l; }
 
 register() { local t; t=$(tok "$1" auth/register.php)
     curl -s -b "$(jar "$1")" -c "$(jar "$1")" -o /dev/null -w '%{redirect_url}' --data-urlencode "csrf_token=$t" --data-urlencode "name=$2" \
@@ -159,6 +167,38 @@ grep -q 'BEGIN:VEVENT' "$WORK/e.ics" && grep -q "UID:event-$EV@" "$WORK/e.ics" &
 ICS_PATH="$WORK/e.ics"; command -v cygpath >/dev/null && ICS_PATH=$(cygpath -w "$ICS_PATH")
 crlf=$(python -c "import sys; d=open(sys.argv[1],'rb').read(); print(int(d.count(b'\n') == d.count(b'\r\n') and max(len(l) for l in d.split(b'\r\n')) <= 75))" "$ICS_PATH" 2>/dev/null || echo error)
 check ".ics uses CRLF and folds long lines" '[ "$crlf" = 1 ]'
+
+echo "== Email notifications"
+n=$(mails qa_a@example.test "New registration"); check "organiser emailed about a new registration ($n)" '[ "$n" -ge 1 ]'
+n=$(mails qa_b@example.test "You're in"); check "participant emailed when approved ($n)" '[ "$n" -ge 1 ]'
+f=$(grep -l "^To: qa_b@example.test" "$ROOT"/storage/mail/*.txt | xargs grep -l "^Subject: You're in" | head -1)
+grep -q 'View my ticket' "${f%.txt}.html" 2>/dev/null && pass "approval email has an HTML version with the ticket button" || fail "approval email has an HTML version with the ticket button"
+grep -q 'Content-Type: multipart/alternative' "${f%.txt}" 2>/dev/null && pass "email is multipart (text + HTML)" || fail "email is multipart (text + HTML)"
+n=$(mails qa_c@example.test "A place opened up"); check "promoted person emailed ($n)" '[ "$n" -ge 1 ]'
+n=$(mails qa_a@example.test "Waitlist:"); check "organiser emailed about the waitlist move ($n)" '[ "$n" -ge 1 ]'
+
+t=$(tok c users/profile.php)
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null -d "csrf_token=$t&phone=0123456789&email_settings=1&email_organiser=1" "$BASE/users/profile_action.php"
+st=$(sql "SELECT CONCAT(email_participant, email_organiser) FROM users WHERE email = 'qa_c@example.test'"); check "participant can switch off registration emails ($st)" '[ "$st" = 01 ]'
+sql "UPDATE events SET event_date = DATE(NOW() + INTERVAL 2 HOUR), event_time = TIME(NOW() + INTERVAL 2 HOUR), reg_close_date = DATE(NOW() + INTERVAL 2 HOUR) WHERE event_id = $EV"
+"$PHP" "$ROOT/tools/send_mail.php" >/dev/null 2>&1; "$PHP" "$ROOT/tools/send_mail.php" >/dev/null 2>&1
+n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_c@example.test' AND n.message LIKE '%Reminder:%'")
+check "worker sends one in-app reminder per registration ($n)" '[ "$n" = 1 ]'
+n=$(mails qa_c@example.test "Reminder:"); check "no reminder email when switched off ($n)" '[ "$n" = 0 ]'
+
+t=$(tok c users/profile.php)
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null -d "csrf_token=$t&phone=0123456789&email_settings=1&email_participant=1&email_organiser=1" "$BASE/users/profile_action.php"
+t=$(tok a users/my_events.php)
+curl -s -b "$(jar a)" -c "$(jar a)" -o /dev/null -d "csrf_token=$t&event_id=$EV&delete_event=1" "$BASE/users/my_events.php"
+n=$(sql "SELECT COUNT(*) FROM events WHERE event_id = $EV"); check "organiser deletes the event" '[ "$n" = 0 ]'
+n=$(mails qa_c@example.test "Cancelled:"); check "registered person emailed about the cancellation ($n)" '[ "$n" -ge 1 ]'
+
+sql "INSERT INTO mail_queue (to_email, subject, body_text) VALUES ('qa_queue@example.test', 'Queue test', 'hello'), ('not-an-address', 'Queue failure test', 'x')"
+"$PHP" "$ROOT/tools/send_mail.php" >/dev/null 2>&1
+st=$(sql "SELECT status FROM mail_queue WHERE to_email = 'qa_queue@example.test'"); check "queued email delivered by the worker ($st)" '[ "$st" = sent ]'
+st=$(sql "SELECT CONCAT(status, ':', attempts, ':', IF(last_error IS NULL, 'no-error', 'error')) FROM mail_queue WHERE to_email = 'not-an-address'")
+check "failed email kept for retry with the error recorded ($st)" '[ "$st" = pending:1:error ]'
+sql "DELETE FROM mail_queue WHERE to_email = 'not-an-address'"
 
 echo "== Profile & password"
 t=$(tok b users/profile.php)

@@ -157,10 +157,12 @@ UPDATE users SET role = 'Admin' WHERE email = 'you@example.edu.my';
 
 | Job | Command | When |
 |---|---|---|
+| **Email + reminders** | `php /path/to/myevent/tools/send_mail.php` | **every 5 minutes** |
 | Backup (database + uploads) | `php /path/to/myevent/tools/backup.php` | daily, e.g. 02:00 |
 | Housekeeping | `php /path/to/myevent/tools/maintenance.php` | daily, e.g. 03:00 |
 
-- cPanel: *Cron Jobs* → e.g. `0 2 * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/backup.php >/dev/null 2>&1`
+- cPanel: *Cron Jobs* → e.g. `*/5 * * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/send_mail.php >/dev/null 2>&1`
+  and `0 2 * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/backup.php >/dev/null 2>&1`
   (the PHP path is shown on that page).
 - VPS: `crontab -e` with the same lines (use `which php` for the path).
 - Windows server / XAMPP: *Task Scheduler* → action `C:\xampp\php\php.exe` with argument `C:\xampp\htdocs\myevent\tools\backup.php`.
@@ -171,6 +173,16 @@ Backups stay on the same server, so also **copy them somewhere else** regularly
 ```bash
 gzip -dc storage/backups/myevent_YYYYMMDD_HHMMSS.sql.gz | mysql -u root -p myevent_restore_test
 ```
+
+---
+
+### How email works
+
+With `MAIL_DRIVER=smtp`, notification emails are written to the `mail_queue` table and delivered by
+`tools/send_mail.php`, so pages never wait for the mail server and failed sends are retried
+(after 5, 15, 45 and 135 minutes, then marked *failed*). Password-reset emails are sent immediately.
+**Without the 5-minute cron job no notification emails go out**; `check_production.php` fails if
+emails wait longer than 30 minutes. People choose which emails they receive in *My profile → Email notifications*.
 
 ---
 

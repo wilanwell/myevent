@@ -120,6 +120,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
         audit($conn, $editing ? 'event.update' : 'event.create', 'event', $savedId, $data['event_name']);
         if ($editing) {
+            $told = notify_event_changed($conn, $editor_event, array_merge($data, ['event_id' => $savedId]));
+            if ($told) {
+                flash('info', "We let {$told} registered " . ($told === 1 ? 'person' : 'people') . ' know about the change.');
+            }
             $moved = promote_waitlist($conn, $savedId);
             if ($moved) {
                 flash('info', $moved . ' ' . ($moved === 1 ? 'person' : 'people') . ' moved up from the waitlist into the new places.');

@@ -13,7 +13,7 @@
 function event_availability(mysqli $conn, int $eventId, bool $forUpdate = false): ?array
 {
     $event = db_all($conn,
-        'SELECT event_id, event_name, created_by, event_date, reg_close_date, max_participants
+        'SELECT event_id, event_name, created_by, event_date, event_time, end_time, venue, mode, reg_close_date, max_participants
          FROM events WHERE event_id = ?' . ($forUpdate ? ' FOR UPDATE' : ''), 'i', [$eventId])[0] ?? null;
     if (!$event) {
         return null;
@@ -49,14 +49,6 @@ function waitlist_count(mysqli $conn, int $eventId): int
     return (int) db_value($conn, 'SELECT COUNT(*) FROM waitlist WHERE event_id = ?', 'i', [$eventId]);
 }
 
-/** Insert a notification (message may contain <strong> markers; rendered safely). */
-function notify(mysqli $conn, int $userId, string $message): void
-{
-    $stmt = $conn->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
-    $stmt->bind_param('is', $userId, $message);
-    $stmt->execute();
-    $stmt->close();
-}
 
 /**
  * Move people from the waitlist into free places. Returns how many were promoted.
@@ -98,11 +90,24 @@ function promote_waitlist(mysqli $conn, int $eventId): int
                 $free--;
                 $promoted++;
                 $name = (string) db_value($conn, 'SELECT name FROM users WHERE user_id = ?', 'i', [(int) $next['user_id']]);
-                notify($conn, (int) $next['user_id'],
-                    "🎟️ A place opened up for <strong>{$state['event_name']}</strong>. You moved off the waitlist and your registration is now waiting for the organiser's approval.");
+                notify_user($conn, (int) $next['user_id'],
+                    "🎟️ A place opened up for <strong>{$state['event_name']}</strong>. You moved off the waitlist and your registration is now waiting for the organiser's approval.",
+                    'participant', [
+                        'subject' => 'A place opened up: ' . $state['event_name'],
+                        'heading' => 'You are off the waitlist',
+                        'intro'   => "A place opened up for {$state['event_name']}, so you have been registered automatically. The organiser will review your registration and you will hear back once it is approved.",
+                        'facts'   => event_facts($state),
+                        'button'  => ['View my registrations', BASE_URL . 'users/my_registrations.php'],
+                    ]);
                 if (!empty($state['created_by'])) {
-                    notify($conn, (int) $state['created_by'],
-                        "⬆️ <strong>{$name}</strong> moved from the waitlist into <strong>{$state['event_name']}</strong> and is waiting for your approval.");
+                    notify_user($conn, (int) $state['created_by'],
+                        "⬆️ <strong>{$name}</strong> moved from the waitlist into <strong>{$state['event_name']}</strong> and is waiting for your approval.",
+                        'organiser', [
+                            'subject' => "Waitlist: {$name} moved into {$state['event_name']}",
+                            'heading' => 'Someone moved up from the waitlist',
+                            'intro'   => "{$name} was first in line and now holds a place in {$state['event_name']}. Their registration is waiting for your approval.",
+                            'button'  => ['Review participants', BASE_URL . 'users/manage_participants.php?event_id=' . $eventId],
+                        ]);
                 }
                 audit($conn, 'waitlist.promote', 'event', $eventId, $name . ' promoted into ' . $state['event_name']);
             }

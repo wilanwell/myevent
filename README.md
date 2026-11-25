@@ -53,6 +53,20 @@ Back up first (`mysqldump -u root myevent > backup.sql`).
   `.ics` file (`event_calendar.php`) for Outlook and Apple Calendar, with a reminder one hour before.
   Organisers can set an optional end time; without one, calendars assume two hours.
 
+## Email notifications
+
+Every notification appears under the bell icon and, unless the person switched it off in
+*My profile → Email notifications*, also as a branded HTML email (with a plain-text version):
+
+| Who | When |
+|---|---|
+| Participant | Registration approved (with ticket link) or not approved; moved off the waitlist; reminder ~24 hours before the event; the event's date, time or venue changed; the event was cancelled |
+| Organiser | Someone registered; someone moved up from the waitlist |
+
+Calls go through `notify_user()` in `include/notify.php`. In development (`MAIL_DRIVER=log`) emails are
+written to `storage/mail/` (`.eml`, `.txt` and `.html` copies) straight away. In production they are queued and
+sent by `php tools/send_mail.php` every 5 minutes (see DEPLOY.md), which also queues the reminders.
+
 ## Time zone
 
 `APP_TIMEZONE` (default `Asia/Kuala_Lumpur`) is applied to both PHP and the MySQL session, so
@@ -112,6 +126,7 @@ Override `BASE`, `MYSQL` or `DB` with environment variables if your setup differ
 | `tests/e2e.sh` | End-to-end test suite |
 | `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
 | `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
+| `tools/send_mail.php` | Delivers queued emails and day-before reminders (cron every 5 minutes) |
 | `tools/maintenance.php` | Daily housekeeping: expired tokens, log rotation, orphaned uploads report |
 | `health.php` | Uptime-monitor endpoint: `ok` / 200 when PHP and the database respond |
 | `storage/logs`, `storage/mail` | PHP error log and development mailbox (not web-accessible) |

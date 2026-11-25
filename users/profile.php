@@ -7,7 +7,7 @@ require_once __DIR__ . '/../config.php';
 require_login();
 
 $user = db_all($conn,
-    'SELECT name, email, phone, organization, bio, profile_pic, category, recommend_events FROM users WHERE user_id = ?',
+    'SELECT name, email, phone, organization, bio, profile_pic, category, recommend_events, email_participant, email_organiser FROM users WHERE user_id = ?',
     'i', [current_user_id()])[0] ?? null;
 if (!$user) {
     force_logout('Your account could not be found. Please log in again.');

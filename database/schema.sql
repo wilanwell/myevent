@@ -94,6 +94,23 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   KEY `idx_ip_time` (`ip_address`,`attempted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- Outbox delivered by tools/send_mail.php (cron every 5 minutes).
+CREATE TABLE IF NOT EXISTS `mail_queue` (
+  `mail_id` int(11) NOT NULL AUTO_INCREMENT,
+  `to_email` varchar(255) NOT NULL,
+  `subject` varchar(255) NOT NULL,
+  `body_text` mediumtext NOT NULL,
+  `body_html` mediumtext DEFAULT NULL,
+  `status` enum('pending','sent','failed') NOT NULL DEFAULT 'pending',
+  `attempts` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `last_error` varchar(500) DEFAULT NULL,
+  `next_attempt_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `sent_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`mail_id`),
+  KEY `idx_mail_queue_due` (`status`,`next_attempt_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE IF NOT EXISTS `notifications` (
   `notif_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
@@ -126,6 +143,7 @@ CREATE TABLE IF NOT EXISTS `registrations` (
   `approval_status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
   `attendance_status` enum('Absent','Present') NOT NULL DEFAULT 'Absent',
   `checked_in_at` datetime DEFAULT NULL,
+  `reminder_sent_at` datetime DEFAULT NULL,
   `registration_date` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`reg_id`),
   UNIQUE KEY `uniq_user_event` (`user_id`,`event_id`),
@@ -147,6 +165,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `bio` text DEFAULT NULL,
   `profile_pic` varchar(255) DEFAULT NULL,
+  `email_participant` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Emails about my own registrations and events I joined',
+  `email_organiser` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Emails when people register for events I organise',
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

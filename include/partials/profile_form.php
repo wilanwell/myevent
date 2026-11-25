@@ -75,6 +75,22 @@ $__options   = ['workshop' => 'Workshop', 'seminar' => 'Seminar', 'competition' 
             </div>
         </div>
 
+        <div class="form-section" id="email-settings">
+            <h3 class="form-section-title">Email notifications</h3>
+            <p class="form-section-desc">You always see updates under the bell icon. Choose what we also send to <?= e($user['email']) ?>.</p>
+            <input type="hidden" name="email_settings" value="1">
+            <div class="toggle-list">
+                <label class="toggle">
+                    <input type="checkbox" name="email_participant" value="1"<?= (int) ($user['email_participant'] ?? 1) ? ' checked' : '' ?>>
+                    <span><b>My registrations</b><span class="hint">Approvals, waitlist places, reminders the day before, and changes or cancellations of events I joined.</span></span>
+                </label>
+                <label class="toggle">
+                    <input type="checkbox" name="email_organiser" value="1"<?= (int) ($user['email_organiser'] ?? 1) ? ' checked' : '' ?>>
+                    <span><b>Events I organise</b><span class="hint">When someone registers or moves up from the waitlist.</span></span>
+                </label>
+            </div>
+        </div>
+
         <div class="form-section">
             <h3 class="form-section-title">Change password</h3>
             <p class="form-section-desc">Leave both fields empty to keep your current password.</p>
