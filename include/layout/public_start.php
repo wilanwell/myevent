@@ -24,6 +24,7 @@ $__cur = static fn(string $key) => $nav_current === $key ? ' aria-current="page"
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <?php include ROOT_PATH . '/include/layout/theme_head.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="<?= e($page_desc) ?>">
     <title><?= e($page_title) ?> | <?= e(APP_NAME) ?></title>
@@ -32,8 +33,8 @@ $__cur = static fn(string $key) => $nav_current === $key ? ' aria-current="page"
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=7">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/public.css?v=7">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=8">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/public.css?v=8">
 </head>
 <body class="app public">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -45,6 +46,9 @@ $__cur = static fn(string $key) => $nav_current === $key ? ' aria-current="page"
             <i class="fa-solid fa-bars"></i>
         </button>
         <nav class="site-links" id="site-links" aria-label="Main">
+            <button type="button" class="icon-btn theme-toggle site-theme-toggle" data-theme-toggle aria-label="Switch to dark theme" title="Switch theme">
+                <i class="fa-regular fa-moon" aria-hidden="true"></i><i class="fa-regular fa-sun" aria-hidden="true"></i>
+            </button>
             <a class="site-link" href="<?= e($u) ?>index.php"<?= $__cur('home') ?>>Home</a>
             <a class="site-link" href="<?= e($u) ?>browse_events.php"<?= $__cur('browse') ?>>Browse events</a>
             <?php if ($__me): ?>

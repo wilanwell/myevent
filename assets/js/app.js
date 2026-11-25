@@ -50,6 +50,22 @@
         });
     });
 
+    // Light / dark theme toggle (state lives in theme_head.php)
+    function syncThemeButtons() {
+        var dark = window.myeventTheme && window.myeventTheme.get() === 'dark';
+        document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+            btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+        });
+    }
+    document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!window.myeventTheme) { return; }
+            window.myeventTheme.set(window.myeventTheme.get() === 'dark' ? 'light' : 'dark');
+            syncThemeButtons();
+        });
+    });
+    syncThemeButtons();
+
     // Auto-submit filters: <select data-autosubmit>
     document.querySelectorAll('select[data-autosubmit]').forEach(function (select) {
         select.addEventListener('change', function () { select.form.submit(); });

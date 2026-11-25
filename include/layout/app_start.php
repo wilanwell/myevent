@@ -60,6 +60,7 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <?php include ROOT_PATH . '/include/layout/theme_head.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($page_title) ?> | <?= e(APP_NAME) ?></title>
     <link rel="icon" href="<?= e($u) ?>assets/img/logo.png">
@@ -67,7 +68,7 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=7">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=8">
 </head>
 <body class="app">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -113,6 +114,9 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
             <input id="topbar-q" type="search" name="q" placeholder="Search events, venues or topics">
         </form>
         <div class="topbar-actions">
+            <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch to dark theme" title="Switch theme">
+                <i class="fa-regular fa-moon" aria-hidden="true"></i><i class="fa-regular fa-sun" aria-hidden="true"></i>
+            </button>
             <a class="icon-btn" href="<?= e($u) ?>users/notifications.php" aria-label="Notifications<?= $__unread ? ' (' . $__unread . ' unread)' : '' ?>">
                 <i class="fa-regular fa-bell"></i>
                 <?php if ($__unread): ?><span class="dot"><?= $__unread > 9 ? '9+' : $__unread ?></span><?php endif; ?>
