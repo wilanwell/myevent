@@ -245,3 +245,123 @@ function ticket_checkin_url(string $code): string
 {
     return BASE_URL . 'users/checkin.php?code=' . rawurlencode($code);
 }
+
+/* ------------------------------------------------------------------ */
+/* Ratings                                                             */
+/* ------------------------------------------------------------------ */
+
+/** Five-star display for a value from 0 to 5 (rounded to the nearest half). */
+function rating_stars(float $value): string
+{
+    $half = round($value * 2) / 2;
+    $html = '<span class="stars" role="img" aria-label="' . e(number_format($value, 1)) . ' out of 5 stars">';
+    for ($i = 1; $i <= 5; $i++) {
+        if ($half >= $i) {
+            $html .= '<i class="fa-solid fa-star" aria-hidden="true"></i>';
+        } elseif ($half >= $i - 0.5) {
+            $html .= '<i class="fa-solid fa-star-half-stroke" aria-hidden="true"></i>';
+        } else {
+            $html .= '<i class="fa-regular fa-star is-empty" aria-hidden="true"></i>';
+        }
+    }
+    return $html . '</span>';
+}
+
+/** Average rating and count for an event: ['avg' => float, 'count' => int]. */
+function event_rating(mysqli $conn, int $eventId): array
+{
+    $row = db_all($conn, 'SELECT AVG(rating) AS avg, COUNT(*) AS count FROM feedback WHERE event_id = ?', 'i', [$eventId])[0];
+    return ['avg' => (float) $row['avg'], 'count' => (int) $row['count']];
+}
+
+/* ------------------------------------------------------------------ */
+/* Calendar export                                                     */
+/* ------------------------------------------------------------------ */
+
+const DEFAULT_EVENT_HOURS = 2;
+
+/** Start and end as DateTimeImmutable in the app time zone (end defaults to start + 2 hours). */
+function event_period(array $event): array
+{
+    $tz = new DateTimeZone(date_default_timezone_get());
+    $start = new DateTimeImmutable($event['event_date'] . ' ' . $event['event_time'], $tz);
+    $end = !empty($event['end_time'])
+        ? new DateTimeImmutable($event['event_date'] . ' ' . $event['end_time'], $tz)
+        : $start->modify('+' . DEFAULT_EVENT_HOURS . ' hours');
+    if ($end <= $start) {
+        $end = $start->modify('+' . DEFAULT_EVENT_HOURS . ' hours');
+    }
+    return [$start, $end];
+}
+
+/** Link that opens Google Calendar with the event pre-filled. */
+function google_calendar_url(array $event): string
+{
+    [$start, $end] = event_period($event);
+    $utc = new DateTimeZone('UTC');
+    return 'https://calendar.google.com/calendar/render?' . http_build_query([
+        'action'   => 'TEMPLATE',
+        'text'     => $event['event_name'],
+        'dates'    => $start->setTimezone($utc)->format('Ymd\THis\Z') . '/' . $end->setTimezone($utc)->format('Ymd\THis\Z'),
+        'details'  => trim(mb_substr((string) ($event['description'] ?? ''), 0, 800) . "\n\n" . BASE_URL . 'event_detail.php?id=' . (int) $event['event_id']),
+        'location' => $event['venue'] ?? '',
+    ]);
+}
+
+/** Escape text for an iCalendar property value (RFC 5545 3.3.11). */
+function ics_escape(string $text): string
+{
+    // Order matters: escape backslashes first, then separators, then line breaks.
+    $text = str_replace('\\', '\\\\', $text);
+    $text = str_replace([';', ','], ['\\;', '\\,'], $text);
+    return str_replace(["\r\n", "\n", "\r"], ['\\n', '\\n', ''], $text);
+}
+
+/** Fold long lines to 75 octets as RFC 5545 requires. */
+function ics_fold(string $line): string
+{
+    $out = '';
+    while (strlen($line) > 75) {
+        $cut = 75;
+        // do not split a multi-byte UTF-8 character
+        while ($cut > 0 && (ord($line[$cut]) & 0xC0) === 0x80) {
+            $cut--;
+        }
+        $out .= substr($line, 0, $cut) . "\r\n ";
+        $line = substr($line, $cut);
+    }
+    return $out . $line;
+}
+
+/** A complete .ics document for one event. */
+function event_ics(array $event): string
+{
+    [$start, $end] = event_period($event);
+    $utc = new DateTimeZone('UTC');
+    $host = parse_url(BASE_URL, PHP_URL_HOST) ?: 'localhost';
+    $url = BASE_URL . 'event_detail.php?id=' . (int) $event['event_id'];
+    $lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//' . APP_NAME . '//Campus events//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        'UID:event-' . (int) $event['event_id'] . '@' . $host,
+        'DTSTAMP:' . gmdate('Ymd\THis\Z'),
+        'DTSTART:' . $start->setTimezone($utc)->format('Ymd\THis\Z'),
+        'DTEND:' . $end->setTimezone($utc)->format('Ymd\THis\Z'),
+        'SUMMARY:' . ics_escape($event['event_name']),
+        'LOCATION:' . ics_escape((string) ($event['venue'] ?? '')),
+        'DESCRIPTION:' . ics_escape(trim((string) ($event['description'] ?? '') . "\n\n" . $url)),
+        'URL:' . $url,
+        'BEGIN:VALARM',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:' . ics_escape($event['event_name']),
+        'TRIGGER:-PT1H',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR',
+    ];
+    return implode("\r\n", array_map('ics_fold', $lines)) . "\r\n";
+}

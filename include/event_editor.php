@@ -22,6 +22,7 @@ function event_input(mysqli $conn): array
         'venue'            => trim((string) ($_POST['venue'] ?? '')),
         'event_date'       => (string) ($_POST['event_date'] ?? ''),
         'event_time'       => (string) ($_POST['event_time'] ?? ''),
+        'end_time'         => (string) ($_POST['end_time'] ?? ''),
         'mode'             => (string) ($_POST['mode'] ?? ''),
         'reg_close_date'   => (string) ($_POST['reg_close_date'] ?? ''),
         'max_participants' => max(0, (int) ($_POST['max_participants'] ?? 0)),
@@ -42,6 +43,13 @@ function event_input(mysqli $conn): array
     }
     if (!valid_time($d['event_time'])) {
         $errors['event_time'] = 'Choose a start time.';
+    }
+    if ($d['end_time'] === '') {
+        $d['end_time'] = null;
+    } elseif (!valid_time($d['end_time'])) {
+        $errors['end_time'] = 'Choose a valid end time.';
+    } elseif (valid_time($d['event_time']) && substr($d['end_time'], 0, 5) <= substr($d['event_time'], 0, 5)) {
+        $errors['end_time'] = 'The event must end after it starts.';
     }
     if (!in_array($d['mode'], ['Physical', 'Online', 'Hybrid'], true)) {
         $errors['mode'] = 'Choose physical, online or hybrid.';
@@ -68,7 +76,7 @@ function event_input(mysqli $conn): array
 $editing  = !empty($editor_event);
 $data     = $editing ? $editor_event : [
     'event_name' => '', 'description' => '', 'category_id' => 0, 'contact_no' => '', 'venue' => '',
-    'event_date' => '', 'event_time' => '', 'mode' => 'Physical', 'reg_close_date' => '',
+    'event_date' => '', 'event_time' => '', 'end_time' => null, 'mode' => 'Physical', 'reg_close_date' => '',
     'max_participants' => 0, 'fee' => 0, 'remarks' => '', 'visibility' => 'Public', 'poster_path' => null,
 ];
 $errors   = [];
@@ -87,23 +95,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         $poster = $newPoster ?? ($editing ? $editor_event['poster_path'] : null);
         $cols = [$data['event_name'], $data['description'], $data['category_id'], $data['contact_no'], $data['venue'],
-                 $data['event_date'], $data['event_time'], $data['mode'], $data['reg_close_date'],
+                 $data['event_date'], $data['event_time'], $data['end_time'], $data['mode'], $data['reg_close_date'],
                  $data['max_participants'], $data['fee'], $data['remarks'], $data['visibility'], $poster];
-        $types = 'ssissssssidsss';
+        $types = 'ssisssssssidsss';
 
         if ($editing) {
             $stmt = $conn->prepare(
                 'UPDATE events SET event_name = ?, description = ?, category_id = ?, contact_no = ?, venue = ?,
-                        event_date = ?, event_time = ?, mode = ?, reg_close_date = ?, max_participants = ?,
+                        event_date = ?, event_time = ?, end_time = ?, mode = ?, reg_close_date = ?, max_participants = ?,
                         fee = ?, remarks = ?, visibility = ?, poster_path = ?
                  WHERE event_id = ?');
             $cols[] = (int) $editor_event['event_id'];
             $stmt->bind_param($types . 'i', ...$cols);
         } else {
             $stmt = $conn->prepare(
-                'INSERT INTO events (event_name, description, category_id, contact_no, venue, event_date, event_time,
+                'INSERT INTO events (event_name, description, category_id, contact_no, venue, event_date, event_time, end_time,
                                      mode, reg_close_date, max_participants, fee, remarks, visibility, poster_path, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $cols[] = current_user_id();
             $stmt->bind_param($types . 'i', ...$cols);
         }
@@ -111,6 +119,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savedId = $editing ? (int) $editor_event['event_id'] : (int) $conn->insert_id;
         $stmt->close();
         audit($conn, $editing ? 'event.update' : 'event.create', 'event', $savedId, $data['event_name']);
+        if ($editing) {
+            $moved = promote_waitlist($conn, $savedId);
+            if ($moved) {
+                flash('info', $moved . ' ' . ($moved === 1 ? 'person' : 'people') . ' moved up from the waitlist into the new places.');
+            }
+        }
 
         if ($newPoster && $editing) {
             delete_upload($editor_event['poster_path'], POSTER_DIR);
@@ -193,6 +207,11 @@ include ROOT_PATH . '/include/layout/app_start.php';
                     <label for="ev-time">Start time <span class="req" aria-hidden="true">*</span></label>
                     <input id="ev-time" type="time" name="event_time" value="<?= e(substr((string) $data['event_time'], 0, 5)) ?>" required<?= $invalid('event_time') ?>>
                     <?= $err('event_time') ?>
+                </div>
+                <div class="field">
+                    <label for="ev-end">End time</label>
+                    <input id="ev-end" type="time" name="end_time" value="<?= e(substr((string) ($data['end_time'] ?? ''), 0, 5)) ?>"<?= $invalid('end_time') ?>>
+                    <?= $err('end_time') ?: '<span class="hint">Optional. Calendars assume two hours if empty.</span>' ?>
                 </div>
                 <div class="field">
                     <label for="ev-venue">Venue <span class="req" aria-hidden="true">*</span></label>

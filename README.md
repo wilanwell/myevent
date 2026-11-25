@@ -38,6 +38,24 @@ mysql -u root myevent < database/migrations/<file>.sql
 `database/schema.sql` always reflects the schema after the latest migration.
 Back up first (`mysqldump -u root myevent > backup.sql`).
 
+## Participant features
+
+- **Waitlist.** When an event is full and registration is still open, people can join a
+  first-come-first-served waitlist. When a place frees up (a cancellation, a rejection, or a
+  higher capacity), the first person in line becomes a *Pending* registration automatically and
+  is notified; the organiser approves as usual. Logic lives in `include/waitlist.php`.
+- **Feedback.** Participants with an approved registration can rate an event (1 to 5 stars, with an
+  optional comment) once it has started, and edit it later. The average rating is public on the
+  event page; comments are visible only to the organiser and admins.
+- **Add to calendar.** Event pages and tickets link to Google Calendar and to a downloadable
+  `.ics` file (`event_calendar.php`) for Outlook and Apple Calendar, with a reminder one hour before.
+  Organisers can set an optional end time; without one, calendars assume two hours.
+
+## Time zone
+
+`APP_TIMEZONE` (default `Asia/Kuala_Lumpur`) is applied to both PHP and the MySQL session, so
+"today", registration deadlines and timestamps agree everywhere.
+
 ## Email
 
 `MAIL_DRIVER=log` (development) saves every email to `storage/mail/` instead of sending it.

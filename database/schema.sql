@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   `venue` varchar(255) NOT NULL,
   `event_date` date NOT NULL,
   `event_time` time NOT NULL,
+  `end_time` time DEFAULT NULL,
   `mode` enum('Physical','Online','Hybrid') NOT NULL DEFAULT 'Physical',
   `remarks` text DEFAULT NULL,
   `visibility` enum('Public','Private') NOT NULL DEFAULT 'Public',
@@ -67,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `events` (
   CONSTRAINT `chk_events_capacity` CHECK (`max_participants` >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Reserved for the upcoming event feedback feature.
+-- Post-event ratings (1-5) and private comments, one per participant per event.
 CREATE TABLE IF NOT EXISTS `feedback` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `event_id` int(11) NOT NULL,
@@ -75,11 +76,13 @@ CREATE TABLE IF NOT EXISTS `feedback` (
   `rating` int(11) NOT NULL,
   `comment` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_feedback_user_event` (`user_id`,`event_id`),
   KEY `event_id` (`event_id`),
-  KEY `user_id` (`user_id`),
   CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`) ON DELETE CASCADE,
-  CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+  CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_feedback_rating` CHECK (`rating` between 1 and 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `login_attempts` (
@@ -155,6 +158,19 @@ CREATE TABLE IF NOT EXISTS `users` (
   `profile_pic` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- First-come-first-served queue for full events (see include/waitlist.php).
+CREATE TABLE IF NOT EXISTS `waitlist` (
+  `waitlist_id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`waitlist_id`),
+  UNIQUE KEY `uniq_waitlist_user_event` (`user_id`,`event_id`),
+  KEY `idx_waitlist_event_order` (`event_id`,`created_at`,`waitlist_id`),
+  CONSTRAINT `waitlist_event_fk` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`) ON DELETE CASCADE,
+  CONSTRAINT `waitlist_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

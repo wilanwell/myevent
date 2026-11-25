@@ -38,6 +38,9 @@ function env(string $key, $default = null)
 }
 
 define('APP_NAME', env('APP_NAME', 'MyEvent'));
+
+// One time zone for PHP and MySQL, so "today" means the same thing in both.
+date_default_timezone_set(env('APP_TIMEZONE', 'Asia/Kuala_Lumpur'));
 define('DEBUG_MODE', filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOLEAN));
 
 /* --- 2. Error handling ---------------------------------------------- */
@@ -52,6 +55,7 @@ ini_set('error_log', APP_ROOT . '/storage/logs/php-error.log');
 require_once APP_ROOT . '/include/security.php';
 require_once APP_ROOT . '/include/helpers.php';
 require_once APP_ROOT . '/include/mailer.php';
+require_once APP_ROOT . '/include/waitlist.php';
 
 set_exception_handler(function (Throwable $ex) {
     error_log('[' . date('c') . '] ' . get_class($ex) . ': ' . $ex->getMessage()
@@ -117,6 +121,7 @@ $conn = new mysqli(
     (int) env('DB_PORT', 3306)
 );
 $conn->set_charset('utf8mb4');
+$conn->query("SET time_zone = '" . (new DateTime())->format('P') . "'");
 
 /* --- 7. CSRF: every POST must carry a valid token ------------------- */
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {

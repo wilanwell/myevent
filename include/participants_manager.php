@@ -42,6 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     audit($conn, 'registration.' . $action, 'registration', $reg_id, $pm_event['event_name']);
 
+    if ($action === 'reject' && $reg['approval_status'] !== 'Rejected') {
+        $promotedCount = promote_waitlist($conn, $event_id);
+    }
+
     if ($notice) {
         $msg = sprintf($notice, $pm_event['event_name']);
         $stmt = $conn->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
@@ -49,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
     }
-    flash('success', $done);
+    flash('success', $done . (!empty($promotedCount) ? ' ' . $promotedCount . ' ' . ($promotedCount === 1 ? 'person' : 'people') . ' moved up from the waitlist.' : ''));
     redirect($self . (isset($_GET['status']) ? '&status=' . urlencode((string) $_GET['status']) : ''));
 }
 
@@ -111,6 +115,13 @@ $rows = db_all($conn,
      LIMIT ? OFFSET ?", $types . 'ii', array_merge($params, [$p['per_page'], $p['offset']]));
 
 $capacity = (int) $pm_event['max_participants'];
+$rating   = event_rating($conn, $event_id);
+$reviews  = db_all($conn,
+    'SELECT f.rating, f.comment, f.created_at, f.updated_at, u.name FROM feedback f JOIN users u ON u.user_id = f.user_id
+     WHERE f.event_id = ? ORDER BY COALESCE(f.updated_at, f.created_at) DESC', 'i', [$event_id]);
+$waitlist = db_all($conn,
+    'SELECT u.name, u.email, w.created_at FROM waitlist w JOIN users u ON u.user_id = w.user_id
+     WHERE w.event_id = ? ORDER BY w.created_at, w.waitlist_id', 'i', [$event_id]);
 
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
@@ -241,5 +252,51 @@ include ROOT_PATH . '/include/layout/app_start.php';
         </div>
     <?php endif; ?>
 </section>
+
+<?php if ($reviews): ?>
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">Feedback</h2>
+            <p class="card-subtitle">Only you and administrators can read comments. The average is shown on the event page.</p>
+        </div>
+        <span class="rating-summary"><?= rating_stars($rating['avg']) ?> <b><?= e(number_format($rating['avg'], 1)) ?></b> from <?= $rating['count'] ?></span>
+    </div>
+    <?php foreach ($reviews as $rv): ?>
+        <article class="review">
+            <div class="review-head">
+                <span class="event-cell-title"><?= e($rv['name']) ?></span>
+                <span><?= rating_stars((float) $rv['rating']) ?> <span class="cell-muted"><?= e(date('j M Y', strtotime($rv['updated_at'] ?? $rv['created_at']))) ?></span></span>
+            </div>
+            <?php if (trim((string) $rv['comment']) !== ''): ?><p><?= nl2br(e($rv['comment'])) ?></p><?php endif; ?>
+        </article>
+    <?php endforeach; ?>
+</section>
+<?php endif; ?>
+
+<?php if ($waitlist): ?>
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">Waitlist (<?= count($waitlist) ?>)</h2>
+            <p class="card-subtitle">When a place frees up, the first person here is registered automatically and appears above for approval.</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th scope="col" class="num">#</th><th scope="col">Person</th><th scope="col">Joined the waitlist</th></tr></thead>
+            <tbody>
+            <?php foreach ($waitlist as $i => $w): ?>
+                <tr>
+                    <td class="num"><?= $i + 1 ?></td>
+                    <td><div class="event-cell-title"><?= e($w['name']) ?></div><div class="event-cell-meta"><?= e($w['email']) ?></div></td>
+                    <td class="cell-muted"><?= e(date('j M Y, g:i A', strtotime($w['created_at']))) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+<?php endif; ?>
 
 <?php include ROOT_PATH . '/include/layout/app_end.php'; ?>

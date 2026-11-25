@@ -19,6 +19,14 @@ $upcoming = db_all($conn,
      WHERE r.user_id = ? AND e.event_date >= CURDATE() AND r.approval_status <> 'Rejected'
      ORDER BY e.event_date ASC LIMIT 5", 'i', [$user_id]);
 
+$to_rate = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date
+     FROM registrations r JOIN events e ON e.event_id = r.event_id
+     LEFT JOIN feedback f ON f.event_id = r.event_id AND f.user_id = r.user_id
+     WHERE r.user_id = ? AND r.approval_status = 'Approved' AND f.id IS NULL
+       AND TIMESTAMP(e.event_date, e.event_time) <= NOW() AND e.event_date >= CURDATE() - INTERVAL 30 DAY
+     ORDER BY e.event_date DESC LIMIT 3", 'i', [$user_id]);
+
 $organising = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date,
             (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Pending') AS pending
@@ -59,6 +67,29 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <span><span class="stat-value"><?= $open_events ?></span><br><span class="stat-label">Open for registration</span></span>
     </a>
 </div>
+
+<?php if ($to_rate): ?>
+<section class="card rate-prompt">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">How was it?</h2>
+            <p class="card-subtitle">Rate the events you attended recently. It takes ten seconds and helps organisers improve.</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <tbody>
+            <?php foreach ($to_rate as $row): ?>
+                <tr>
+                    <td><div class="event-cell"><?= datestub($row['event_date']) ?><span class="event-cell-title"><?= e($row['event_name']) ?></span></div></td>
+                    <td class="actions"><a class="btn btn-primary btn-sm" href="feedback.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-regular fa-star"></i> Rate event</a></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+<?php endif; ?>
 
 <div class="grid-2">
     <section class="card">

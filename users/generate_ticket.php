@@ -8,7 +8,7 @@ require_login();
 
 $event_id = (int) ($_GET['event_id'] ?? 0);
 $data = db_all($conn,
-    "SELECT e.event_name, e.event_date, e.event_time, e.venue, e.mode, e.remarks,
+    "SELECT e.event_id, e.event_name, e.description, e.event_date, e.event_time, e.end_time, e.venue, e.mode, e.remarks,
             u.name AS user_name, u.email, r.reg_id, r.registration_date, org.name AS organiser
      FROM registrations r
      JOIN events e ON e.event_id = r.event_id
@@ -35,8 +35,8 @@ $ts = strtotime($data['event_date']);
     <title>Ticket: <?= e($data['event_name']) ?> | <?= e(APP_NAME) ?></title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=8">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=8">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=10">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=10">
     <style>
         body { padding: 40px 20px; }
         .ticket-page { max-width: 640px; margin: 0 auto; }
@@ -61,7 +61,10 @@ $ts = strtotime($data['event_date']);
 <div class="ticket-page">
     <div class="ticket-actions">
         <a class="btn btn-ghost" href="my_registrations.php"><i class="fa-solid fa-arrow-left"></i> My registrations</a>
-        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print or save as PDF</button>
+        <span>
+            <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>event_calendar.php?id=<?= (int) $data['event_id'] ?>"><i class="fa-regular fa-calendar-plus"></i> Add to calendar</a>
+            <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print or save as PDF</button>
+        </span>
     </div>
 
     <article class="ticket" aria-label="Ticket for <?= e($data['event_name']) ?>">

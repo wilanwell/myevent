@@ -600,3 +600,28 @@ a.badge:hover { filter: brightness(0.97); }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------------------------------------------------------------------
+   Ratings
+   --------------------------------------------------------------------- */
+/* Input: radios 5..1 in the DOM, shown 1..5 with row-reverse so CSS can fill lower stars. */
+.star-input { display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; gap: var(--sp-1); margin-top: var(--sp-1); }
+.star-input input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.star-input label { font-size: 2rem; line-height: 1; padding: 2px; color: var(--line-strong); cursor: pointer; border-radius: 8px; transition: color 0.1s ease, transform 0.1s ease; }
+.star-input label:hover { transform: scale(1.08); }
+.star-input label:hover, .star-input label:hover ~ label, .star-input input:checked ~ label { color: var(--saffron); }
+.star-input:hover input:checked ~ label:not(:hover):not(:hover ~ label) { color: var(--line-strong); }
+.star-input input:focus-visible + label { box-shadow: var(--focus); }
+
+/* Display */
+.stars { display: inline-flex; gap: 2px; color: var(--saffron); font-size: 0.85rem; vertical-align: -1px; }
+.stars .is-empty { color: var(--line-strong); }
+.rating-summary { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--muted); }
+.rating-summary b { color: var(--ink); font-family: var(--font-display); font-size: var(--fs-lg); }
+.review { padding: var(--sp-4) var(--inset); border-bottom: 1px solid var(--line); }
+.review:last-child { border-bottom: 0; }
+.review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.review p { margin: var(--sp-2) 0 0; max-width: 70ch; }
+
+.rate-prompt { border-color: var(--saffron); box-shadow: inset 4px 0 0 var(--saffron), var(--shadow-sm); margin-bottom: var(--gutter); }
+.rate-prompt + .grid-2 { margin-top: 0; }

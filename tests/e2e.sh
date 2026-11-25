@@ -113,6 +113,53 @@ curl -s -b "$(jar a)" -o /dev/null --data-urlencode "csrf_token=$t" --data-urlen
 st=$(sql "SELECT CONCAT(attendance_status, IF(checked_in_at IS NULL, '-no-time', '-timed')) FROM registrations WHERE reg_id = $REG")
 check "organiser checks the participant in ($st)" '[ "$st" = Present-timed ]'
 
+echo "== Waitlist (event has 1 place, taken by the participant)"
+r=$(register c "QA Waiter" qa_c@example.test "$PW"); r=$(login c qa_c@example.test "$PW")
+t=$(tok c "event_detail.php?id=$EV")
+curl -s -b "$(jar c)" -c "$(jar c)" "$BASE/event_detail.php?id=$EV" | grep -q 'value="join_waitlist"' && pass "full event offers the waitlist" || fail "full event offers the waitlist"
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null -d "csrf_token=$t&event_id=$EV&action=join_waitlist" "$BASE/users/register_event.php"
+n=$(sql "SELECT COUNT(*) FROM waitlist w JOIN users u ON u.user_id = w.user_id WHERE w.event_id = $EV AND u.email = 'qa_c@example.test'")
+check "second person joins the waitlist" '[ "$n" = 1 ]'
+curl -s -b "$(jar c)" -c "$(jar c)" "$BASE/event_detail.php?id=$EV" | grep -q 'number 1 on the waitlist' && pass "waitlist position is shown" || fail "waitlist position is shown"
+t=$(tok c "event_detail.php?id=$EV")
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null -d "csrf_token=$t&event_id=$EV" "$BASE/users/register_event.php"
+n=$(sql "SELECT COUNT(*) FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")
+check "registering for a full event does not overbook" '[ "$n" = 0 ]'
+t=$(tok b users/my_registrations.php)
+curl -s -b "$(jar b)" -c "$(jar b)" -o /dev/null -d "csrf_token=$t&event_id=$EV&cancel_registration=1" "$BASE/users/my_registrations.php"
+st=$(sql "SELECT r.approval_status FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")
+check "cancellation promotes the first person in line ($st)" '[ "$st" = Pending ]'
+n=$(sql "SELECT COUNT(*) FROM waitlist WHERE event_id = $EV"); check "promoted person leaves the waitlist" '[ "$n" = 0 ]'
+n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_c@example.test' AND n.message LIKE '%place opened up%'")
+check "promoted person is notified" '[ "$n" = 1 ]'
+n=$(sql "SELECT COUNT(*) FROM registrations WHERE event_id = $EV AND approval_status <> 'Rejected'"); check "capacity still respected after promotion" '[ "$n" = 1 ]'
+
+echo "== Feedback"
+CREG=$(sql "SELECT r.reg_id FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")
+r=$(curl -s -b "$(jar c)" -o /dev/null -w '%{redirect_url}' "$BASE/users/feedback.php?event_id=$EV"); check "cannot rate before approval" '[[ "$r" == *my_registrations.php* ]]'
+sql "UPDATE registrations SET approval_status = 'Approved' WHERE reg_id = $CREG"
+r=$(curl -s -b "$(jar c)" -o /dev/null -w '%{redirect_url}' "$BASE/users/feedback.php?event_id=$EV"); check "cannot rate before the event starts" '[[ "$r" == *my_registrations.php* ]]'
+sql "UPDATE events SET event_date = CURDATE() - INTERVAL 1 DAY, reg_close_date = CURDATE() - INTERVAL 2 DAY WHERE event_id = $EV"
+page=$(curl -s -b "$(jar c)" -c "$(jar c)" "$BASE/users/feedback.php?event_id=$EV"); t=$(echo "$page" | grep -o 'name="csrf_token" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"$//')
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null --data-urlencode "csrf_token=$t" -d "event_id=$EV&rating=9" "$BASE/users/feedback.php"
+n=$(sql "SELECT COUNT(*) FROM feedback WHERE event_id = $EV"); check "out-of-range rating rejected" '[ "$n" = 0 ]'
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null --data-urlencode "csrf_token=$t" --data-urlencode "comment=<b>Great</b> session" -d "event_id=$EV&rating=4" "$BASE/users/feedback.php"
+curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null --data-urlencode "csrf_token=$t" -d "event_id=$EV&rating=5" "$BASE/users/feedback.php"
+st=$(sql "SELECT CONCAT(COUNT(*), ':', MAX(rating)) FROM feedback WHERE event_id = $EV"); check "one feedback per person, editable ($st)" '[ "$st" = 1:5 ]'
+curl -s "$BASE/event_detail.php?id=$EV" | grep -q 'from 1 rating' && pass "average rating shown publicly" || fail "average rating shown publicly"
+curl -s "$BASE/event_detail.php?id=$EV" | grep -q 'session' && fail "comments stay private" || pass "comments stay private"
+page=$(curl -s -b "$(jar a)" "$BASE/users/manage_participants.php?event_id=$EV")
+echo "$page" | grep -q 'Feedback' && pass "organiser sees feedback" || fail "organiser sees feedback"
+r=$(curl -s -b "$(jar a)" -o /dev/null -w '%{redirect_url}' "$BASE/users/feedback.php?event_id=$EV"); check "non-participant cannot rate" '[[ "$r" == *my_registrations.php* ]]'
+
+echo "== Calendar export"
+hdr=$(curl -s -D - -o "$WORK/e.ics" "$BASE/event_calendar.php?id=$EV")
+echo "$hdr" | grep -qi 'content-type: text/calendar' && pass ".ics served as text/calendar" || fail ".ics served as text/calendar"
+grep -q 'BEGIN:VEVENT' "$WORK/e.ics" && grep -q "UID:event-$EV@" "$WORK/e.ics" && pass ".ics contains the event" || fail ".ics contains the event"
+ICS_PATH="$WORK/e.ics"; command -v cygpath >/dev/null && ICS_PATH=$(cygpath -w "$ICS_PATH")
+crlf=$(python -c "import sys; d=open(sys.argv[1],'rb').read(); print(int(d.count(b'\n') == d.count(b'\r\n') and max(len(l) for l in d.split(b'\r\n')) <= 75))" "$ICS_PATH" 2>/dev/null || echo error)
+check ".ics uses CRLF and folds long lines" '[ "$crlf" = 1 ]'
+
 echo "== Profile & password"
 t=$(tok b users/profile.php)
 curl -s -b "$(jar b)" -o /dev/null -d "csrf_token=$t&phone=0123456789&bio=x&new_password=NewPass123&current_password=wrong" "$BASE/users/profile_action.php"

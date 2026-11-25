@@ -32,6 +32,9 @@ $is_owner   = is_logged_in() && (int) $event['created_by'] === current_user_id()
 $status     = is_logged_in()
     ? db_value($conn, 'SELECT approval_status FROM registrations WHERE user_id = ? AND event_id = ?', 'ii', [current_user_id(), $event_id])
     : null;
+$wait_pos   = is_logged_in() ? waitlist_position($conn, $event_id, current_user_id()) : null;
+$wait_count = $is_full ? waitlist_count($conn, $event_id) : 0;
+$is_past    = $event['event_date'] < date('Y-m-d');
 
 $page_title = $event['event_name'];
 $page_desc  = mb_substr(trim((string) $event['description']), 0, 155) ?: 'Event details and registration.';
@@ -54,6 +57,13 @@ include ROOT_PATH . '/include/layout/public_start.php';
         </div>
         <h1 class="detail-title"><?= e($event['event_name']) ?></h1>
         <p class="detail-organiser">Organised by <?= e($event['organizer_name'] ?? APP_NAME) ?></p>
+        <?php $rating = event_rating($conn, $event_id); if ($rating['count'] > 0): ?>
+            <p class="rating-summary detail-rating">
+                <?= rating_stars($rating['avg']) ?>
+                <b><?= e(number_format($rating['avg'], 1)) ?></b>
+                <span>from <?= $rating['count'] ?> <?= $rating['count'] === 1 ? 'rating' : 'ratings' ?></span>
+            </p>
+        <?php endif; ?>
     </header>
 
     <article class="detail-body">
@@ -75,7 +85,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
     <aside class="card detail-aside" aria-label="Event details and registration">
         <div class="card-body">
             <ul class="facts">
-                <li><i class="fa-regular fa-calendar" aria-hidden="true"></i><div><b><?= e(date('l, j F Y', strtotime($event['event_date']))) ?></b><span>Starts <?= e(date('g:i A', strtotime($event['event_time']))) ?></span></div></li>
+                <li><i class="fa-regular fa-calendar" aria-hidden="true"></i><div><b><?= e(date('l, j F Y', strtotime($event['event_date']))) ?></b><span><?= e(date('g:i A', strtotime($event['event_time']))) ?><?= !empty($event['end_time']) ? ' to ' . e(date('g:i A', strtotime($event['end_time']))) : '' ?></span></div></li>
                 <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i><div><b><?= e($event['venue']) ?></b><span><?= e($event['mode']) ?> event</span></div></li>
                 <li><i class="fa-solid fa-tag" aria-hidden="true"></i><div><b><?= e(format_fee($event['fee'])) ?></b><span><?= (float) $event['fee'] > 0 ? 'Paid to the organiser' : 'No fee' ?></span></div></li>
                 <li><i class="fa-regular fa-hourglass" aria-hidden="true"></i><div><b>Registration <?= $is_closed ? 'closed' : 'closes' ?> <?= e(date('j M Y', strtotime($close_date))) ?></b><span><?= $capacity > 0 ? max(0, $capacity - $taken) . ' of ' . $capacity . ' places left' : 'No limit on places' ?></span></div></li>
@@ -102,8 +112,25 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <div class="status-box flash-error"><i class="fa-solid fa-circle-xmark"></i> Your registration was not approved.</div>
             <?php elseif ($is_closed): ?>
                 <div class="status-box is-muted"><i class="fa-solid fa-lock"></i> Registration has closed.</div>
+            <?php elseif ($wait_pos): ?>
+                <div class="status-box flash-info"><i class="fa-solid fa-list-ol"></i> You are number <?= (int) $wait_pos ?> on the waitlist.</div>
+                <p class="cell-muted no-margin">If a place opens up you will be registered automatically and notified.</p>
+                <form action="users/register_event.php" method="POST">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="event_id" value="<?= $event_id ?>">
+                    <button type="submit" name="action" value="leave_waitlist" class="btn btn-secondary btn-block">Leave the waitlist</button>
+                </form>
+            <?php elseif ($is_full && is_logged_in()): ?>
+                <div class="status-box is-muted"><i class="fa-solid fa-users-slash"></i> This event is full<?= $wait_count ? ' and ' . $wait_count . ' ' . ($wait_count === 1 ? 'person is' : 'people are') . ' waiting' : '' ?>.</div>
+                <form action="users/register_event.php" method="POST">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="event_id" value="<?= $event_id ?>">
+                    <button type="submit" name="action" value="join_waitlist" class="btn btn-primary btn-block btn-lg"><i class="fa-solid fa-list-ol"></i> Join the waitlist</button>
+                </form>
+                <p class="cell-muted no-margin">You will be registered automatically, in order, if someone cancels.</p>
             <?php elseif ($is_full): ?>
                 <div class="status-box is-muted"><i class="fa-solid fa-users-slash"></i> This event is full.</div>
+                <a class="btn btn-primary btn-block btn-lg" href="auth/login.php">Log in to join the waitlist</a>
             <?php elseif (is_logged_in()): ?>
                 <form action="users/register_event.php" method="POST">
                     <?= csrf_field() ?>
@@ -114,6 +141,14 @@ include ROOT_PATH . '/include/layout/public_start.php';
             <?php else: ?>
                 <a class="btn btn-primary btn-block btn-lg" href="auth/login.php">Log in to register</a>
                 <p class="cell-muted no-margin">New here? <a href="auth/register.php">Create a free account</a>.</p>
+            <?php endif; ?>
+
+            <?php if (!$is_past): ?>
+                <div class="calendar-links">
+                    <span class="cell-muted">Add to calendar</span>
+                    <a class="btn btn-ghost btn-sm" href="<?= e(google_calendar_url($event)) ?>" target="_blank" rel="noopener"><i class="fa-brands fa-google" aria-hidden="true"></i> Google</a>
+                    <a class="btn btn-ghost btn-sm" href="event_calendar.php?id=<?= $event_id ?>"><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i> Apple / Outlook</a>
+                </div>
             <?php endif; ?>
         </div>
     </aside>

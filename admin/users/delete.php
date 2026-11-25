@@ -25,12 +25,18 @@ if (!$user) {
     redirect('admin/users/manage.php');
 }
 
+$affectedEvents = array_column(db_all($conn,
+    "SELECT DISTINCT event_id FROM registrations WHERE user_id = ? AND approval_status <> 'Rejected'", 'i', [$id]), 'event_id');
+
 $stmt = $conn->prepare('DELETE FROM users WHERE user_id = ?');
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $stmt->close();
 
 delete_upload($user['profile_pic'], AVATAR_DIR);
+foreach ($affectedEvents as $eventId) {
+    promote_waitlist($conn, (int) $eventId);
+}
 audit($conn, 'user.delete', 'user', $id, $user['name'] . ' <' . $user['email'] . '>');
 
 flash('success', 'User deleted.');
