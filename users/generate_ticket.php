@@ -63,7 +63,7 @@ $ts = strtotime($data['event_date']);
         <a class="btn btn-ghost" href="my_registrations.php"><i class="fa-solid fa-arrow-left"></i> My registrations</a>
         <span>
             <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>event_calendar.php?id=<?= (int) $data['event_id'] ?>"><i class="fa-regular fa-calendar-plus"></i> Add to calendar</a>
-            <button type="button" class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print or save as PDF</button>
+            <button type="button" class="btn btn-primary" data-print><i class="fa-solid fa-print"></i> Print or save as PDF</button>
         </span>
     </div>
 
@@ -100,7 +100,7 @@ $ts = strtotime($data['event_date']);
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
         integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>
+<script nonce="<?= e(CSP_NONCE) ?>">
     (function () {
         var box = document.getElementById('qr');
         if (window.QRCode && box) {
@@ -109,6 +109,8 @@ $ts = strtotime($data['event_date']);
             box.textContent = 'QR unavailable offline. Use the ticket code.';
             box.style.fontSize = '12px';
         }
+        var print = document.querySelector('[data-print]');
+        if (print) { print.addEventListener('click', function () { window.print(); }); }
     })();
 </script>
 </body>

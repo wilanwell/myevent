@@ -77,12 +77,47 @@ define('BASE_PATH_CSS', BASE_PATH_ASSETS . '/css/');
 define('BASE_PATH_IMG', BASE_PATH_ASSETS . '/img/');
 define('BASE_PATH_INCLUDE', BASE_URL . 'include/');
 
-/* --- 4. Security headers -------------------------------------------- */
+/* --- 4. HTTPS and security headers ---------------------------------- */
+/** True when this request arrived over HTTPS (optionally trusting a reverse proxy's header). */
+function request_is_https(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+        return true;
+    }
+    if (($_SERVER['SERVER_PORT'] ?? '') === '443') {
+        return true;
+    }
+    return filter_var(env('APP_TRUST_PROXY', 'false'), FILTER_VALIDATE_BOOLEAN)
+        && strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+}
+
+// When APP_URL is https://, send plain-HTTP visitors to the HTTPS address of the same page.
+if (IS_HTTPS && PHP_SAPI !== 'cli' && !request_is_https() && !headers_sent()) {
+    $basePath = (string) parse_url(BASE_URL, PHP_URL_PATH);
+    $requestPath = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+    $relative = strpos($requestPath, $basePath) === 0 ? substr($requestPath, strlen($basePath)) : ltrim($requestPath, '/');
+    header('Location: ' . BASE_URL . $relative, true, 301);
+    exit;
+}
+
+// Per-request nonce: only inline <script nonce="..."> blocks written by the app may run.
+define('CSP_NONCE', base64_encode(random_bytes(16)));
+
 if (!headers_sent()) {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header("Content-Security-Policy: default-src 'self'; "
+        . "script-src 'self' 'nonce-" . CSP_NONCE . "' https://cdnjs.cloudflare.com; "
+        . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        . "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        . "img-src 'self' data: blob:; connect-src 'self'; "
+        . "form-action 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'");
+    if (IS_HTTPS) {
+        header('Strict-Transport-Security: max-age=15552000');
+    }
 }
 
 /* --- 5. Hardened session -------------------------------------------- */

@@ -1,0 +1,209 @@
+# Deploying MyEvent
+
+This guide takes MyEvent from a laptop (XAMPP) to a real server. It covers the two most
+common hosts: **shared hosting with cPanel** and a **VPS** (Ubuntu + Apache). The app works in
+the web root or any sub-folder (`https://example.edu.my/` or `https://example.edu.my/events/`).
+
+> Run `php tools/check_production.php` on the server at the end. It must say
+> **"Ready for production"** (or only warnings you have consciously accepted) before you announce the site.
+
+---
+
+## 1. Requirements
+
+| | Minimum |
+|---|---|
+| PHP | 8.1+ with `mysqli`, `mbstring`, `openssl`, `fileinfo`, `zlib` (and `phar` for upload backups) |
+| Database | MariaDB 10.4+ or MySQL 8.0+ |
+| Web server | Apache 2.4 with `.htaccess` enabled (`AllowOverride All`) and `mod_rewrite` |
+| HTTPS | A certificate (free: cPanel AutoSSL or Let's Encrypt) |
+| Email | An SMTP account (Gmail/Google Workspace app password, Outlook, Mailtrap, Amazon SES ...) |
+
+Recommended `php.ini` (cPanel: *Select PHP Version → Options* / *MultiPHP INI Editor*):
+
+```ini
+display_errors = Off
+log_errors = On
+upload_max_filesize = 6M
+post_max_size = 8M
+session.cookie_httponly = 1
+expose_php = Off
+```
+
+---
+
+## 2. Upload the code
+
+Upload everything **except** local data:
+
+- do **not** upload `.env`, `storage/logs/*`, `storage/backups/*`, `storage/mail/*`, `uploads/events/*`, `uploads/profiles/*`
+- **do** upload the `.htaccess` files (they are hidden on some systems; enable "show hidden files")
+
+With Git on the server: `git clone <your-repo> myevent` — `.gitignore` already excludes the local data above.
+
+**cPanel:** use *File Manager* (upload a zip and *Extract*) or *Git Version Control*. Put the folder
+inside `public_html` (for example `public_html/events`).
+
+**VPS:** for example `/var/www/myevent`, owned by your deploy user, with the web server group able to read it.
+
+---
+
+## 3. Database
+
+1. Create an empty database (`utf8mb4_general_ci`).
+   - cPanel: *MySQL Databases → Create New Database*.
+   - VPS: `mysql -u root -p -e "CREATE DATABASE myevent CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"`
+2. Import the structure **only** — do *not* import `seed.sql` on a live site (it creates demo accounts):
+   - cPanel: *phpMyAdmin → Import → database/schema.sql*
+   - VPS: `mysql -u root -p myevent < database/schema.sql`
+3. Create a **least-privilege** account for the app (it can read and write rows, but not change or drop tables):
+   - cPanel: *MySQL Databases → Add New User*, then *Add User To Database* and tick only
+     **SELECT, INSERT, UPDATE, DELETE, LOCK TABLES, SHOW VIEW, TRIGGER**.
+   - VPS: edit the password in `database/create_app_user.sql`, then `mysql -u root -p < database/create_app_user.sql`.
+
+**Moving existing data from your laptop instead?** Export with `php tools/backup.php --db-only`, then import
+that `.sql.gz` (phpMyAdmin accepts `.gz`) instead of `schema.sql`, and copy `uploads/events` and `uploads/profiles`
+across. Remove or re-password any `@myevent.test` demo accounts afterwards.
+
+---
+
+## 4. Configure `.env`
+
+Copy `.env.example` to `.env` in the app folder and fill it in:
+
+```ini
+APP_NAME=MyEvent
+APP_URL=https://events.example.edu.my      # exact public address, no trailing slash
+APP_DEBUG=false
+APP_TIMEZONE=Asia/Kuala_Lumpur
+APP_KEY=<php -r "echo bin2hex(random_bytes(32));">
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=cpaneluser_myevent              # cPanel prefixes names with your account
+DB_USERNAME=cpaneluser_myeventapp
+DB_PASSWORD=<the app user's password>
+
+MAIL_DRIVER=smtp
+MAIL_FROM=no-reply@events.example.edu.my
+MAIL_FROM_NAME=MyEvent
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_ENCRYPTION=tls
+SMTP_USERNAME=you@example.edu.my
+SMTP_PASSWORD=<app password>
+
+MYSQLDUMP_PATH=mysqldump
+BACKUP_KEEP=14
+```
+
+- **`APP_KEY` signs ticket QR codes.** Generate a new one for the server and never change it afterwards,
+  or every ticket already issued stops scanning.
+- Behind Cloudflare or a load balancer that terminates HTTPS, also set `APP_TRUST_PROXY=true`.
+- Permissions: `.env` readable by PHP only (`chmod 640 .env` on a VPS; `600` on most cPanel hosts).
+
+---
+
+## 5. Folder permissions
+
+PHP must be able to write to `storage/logs`, `storage/backups`, `storage/mail`, `uploads/events`, `uploads/profiles`.
+
+- cPanel: usually already true (folders `755`, files `644`).
+- VPS: `sudo chown -R deploy:www-data /var/www/myevent && sudo chmod -R 775 /var/www/myevent/storage /var/www/myevent/uploads`
+
+Uploaded files can never run as code: `uploads/.htaccess` blocks scripts.
+
+---
+
+## 6. HTTPS
+
+- cPanel: *SSL/TLS Status → Run AutoSSL* (free certificate, renews itself).
+- VPS: `sudo apt install certbot python3-certbot-apache && sudo certbot --apache -d events.example.edu.my`
+
+Once `APP_URL` starts with `https://`, MyEvent redirects plain HTTP to HTTPS, marks the session cookie
+*Secure* and sends an HSTS header. A Content-Security-Policy is sent on every page.
+
+### VPS: Apache virtual host
+
+```apache
+<VirtualHost *:443>
+    ServerName events.example.edu.my
+    DocumentRoot /var/www/myevent
+    <Directory /var/www/myevent>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    # SSLEngine/SSLCertificate* lines are added by certbot.
+</VirtualHost>
+```
+
+Enable the useful modules: `sudo a2enmod rewrite headers deflate expires ssl && sudo systemctl reload apache2`.
+
+---
+
+## 7. First administrator
+
+Register normally on the live site with your own email, then promote that account once:
+
+```sql
+UPDATE users SET role = 'Admin' WHERE email = 'you@example.edu.my';
+```
+
+(cPanel: phpMyAdmin → SQL.) Further admins can be promoted from **Admin → Users → Edit**.
+
+---
+
+## 8. Scheduled jobs
+
+| Job | Command | When |
+|---|---|---|
+| Backup (database + uploads) | `php /path/to/myevent/tools/backup.php` | daily, e.g. 02:00 |
+| Housekeeping | `php /path/to/myevent/tools/maintenance.php` | daily, e.g. 03:00 |
+
+- cPanel: *Cron Jobs* → e.g. `0 2 * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/backup.php >/dev/null 2>&1`
+  (the PHP path is shown on that page).
+- VPS: `crontab -e` with the same lines (use `which php` for the path).
+- Windows server / XAMPP: *Task Scheduler* → action `C:\xampp\php\php.exe` with argument `C:\xampp\htdocs\myevent\tools\backup.php`.
+
+Backups stay on the same server, so also **copy them somewhere else** regularly
+(download from `storage/backups` or sync with `rclone`). Test a restore now and then:
+
+```bash
+gzip -dc storage/backups/myevent_YYYYMMDD_HHMMSS.sql.gz | mysql -u root -p myevent_restore_test
+```
+
+---
+
+## 9. Final check
+
+```bash
+php tools/check_production.php
+```
+
+Fix every **FAIL**. Then point an uptime monitor at `https://events.example.edu.my/health.php`
+(returns `ok` with status 200 when PHP and the database respond).
+
+---
+
+## 10. Updating later
+
+1. `php tools/backup.php` (always back up first).
+2. Upload the new code (or `git pull`). Keep your `.env` and `uploads/`.
+3. Apply any new files in `database/migrations/` in name order, using an admin database account.
+4. `php tools/check_production.php`.
+
+**Rolling back:** restore the last backup (`gzip -dc ... | mysql ...`), extract the matching
+`_uploads.tar.gz` into `uploads/`, and redeploy the previous code version.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| "Unexpected error" on every page | Wrong DB settings in `.env`; details are in `storage/logs/php-error.log` |
+| CSS missing / 404 on every link | `APP_URL` does not match the real address (check http vs https and the sub-folder) |
+| `.env` or `include/` reachable | `.htaccess` ignored: enable `AllowOverride All` (VPS) or ask the host |
+| Password-reset emails never arrive | `MAIL_DRIVER` still `log`, wrong SMTP password, or the provider blocks the From address |
+| Times or deadlines an hour or more off | `APP_TIMEZONE` not set to your local zone |
+| Old tickets no longer scan | `APP_KEY` was changed after tickets were issued |

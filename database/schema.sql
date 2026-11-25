@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS `events` (
   `fee` decimal(10,2) NOT NULL DEFAULT 0.00,
   `reg_close_date` date DEFAULT NULL,
   `max_participants` int(11) NOT NULL DEFAULT 0,
-  `type` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`event_id`),
   KEY `category_id` (`category_id`),
   KEY `fk_events_createdby` (`created_by`),
@@ -133,14 +132,6 @@ CREATE TABLE IF NOT EXISTS `registrations` (
   KEY `event_id` (`event_id`),
   CONSTRAINT `registrations_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `registrations_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `events` (`event_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Legacy table, not used by the application (interests live in users.recommend_events).
-CREATE TABLE IF NOT EXISTS `user_event_recommend` (
-  `user_id` int(11) NOT NULL,
-  `name` varchar(100) DEFAULT NULL,
-  PRIMARY KEY (`user_id`),
-  CONSTRAINT `user_event_recommend_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `users` (

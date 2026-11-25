@@ -9,7 +9,7 @@
 ?>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f4f6fb">
-<script>
+<script nonce="<?= e(CSP_NONCE) ?>">
 (function () {
     var KEY = 'myevent-theme';
     var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;

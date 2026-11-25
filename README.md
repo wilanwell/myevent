@@ -5,6 +5,8 @@ approval, attendance tracking, notifications and participant exports.
 
 **Stack:** PHP 8.1+ (mysqli), MariaDB 10.4+ / MySQL 8.0+, Apache 2.4 (`mod_rewrite`/`.htaccess` enabled).
 
+> Deploying to a real server? Follow **[DEPLOY.md](DEPLOY.md)** and finish with `php tools/check_production.php`.
+
 ## Installation (XAMPP / local)
 
 1. Put the project in `htdocs/myevent`.
@@ -108,6 +110,10 @@ Override `BASE`, `MYSQL` or `DB` with environment variables if your setup differ
 | `include/mailer.php` | `send_mail()` with log and SMTP drivers |
 | `admin/audit.php` | Audit log of deletions, role changes, approvals, check-ins and password resets |
 | `tests/e2e.sh` | End-to-end test suite |
+| `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
+| `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
+| `tools/maintenance.php` | Daily housekeeping: expired tokens, log rotation, orphaned uploads report |
+| `health.php` | Uptime-monitor endpoint: `ok` / 200 when PHP and the database respond |
 | `storage/logs`, `storage/mail` | PHP error log and development mailbox (not web-accessible) |
 
 ### Adding a page
@@ -134,3 +140,5 @@ Use the components in `app.css` (`card`, `table`, `btn`, `badge`, `field`, `empt
 - State-changing actions use POST only. Escape all output with `e()`.
 - Use prepared statements for every query that includes user input.
 - Use `upload_image()` for uploads; never trust the original file name or extension.
+- A Content-Security-Policy is sent on every page. Inline `<script>` blocks need `nonce="<?= e(CSP_NONCE) ?>"`,
+  and inline event handlers (`onclick="..."`) are not allowed: use `assets/js/app.js` or a nonce'd script.

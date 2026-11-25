@@ -1,8 +1,35 @@
-# MyEvent - Apache hardening
-Options -Indexes
+# MyEvent - Apache configuration (works in any folder: /, /myevent, /events ...)
 
-# Block access to environment files, SQL dumps, logs and VCS metadata.
-<FilesMatch "^\.|\.(sql|log|md|example|ini)$">
+Options -Indexes
+DirectoryIndex index.php
+
+# --- Block private files ---------------------------------------------------
+# Environment files, SQL dumps, logs, docs, VCS metadata and shell scripts.
+<FilesMatch "^\.|\.(sql|gz|log|md|example|ini|sh|lock|json|dist)$">
     Require all denied
 </FilesMatch>
-RedirectMatch 404 ^/myevent/(\.git|storage|include|admin/include)(/|$)
+
+# Folders that must never be served. Each also has its own "Require all denied"
+# .htaccess; this is a second layer and covers hosts that ignore nested files.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(\.git|include|storage|database|tests|tools)(/|$) - [R=404,L]
+</IfModule>
+
+# --- Performance -------------------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript image/svg+xml text/calendar
+</IfModule>
+
+# CSS/JS URLs carry a ?v= version, and uploads have random names, so they can be cached for long.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType text/javascript "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+</IfModule>
