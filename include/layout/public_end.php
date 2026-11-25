@@ -2,7 +2,7 @@
 </main>
 <footer class="site-footer">
     <div class="site-footer-inner">
-        <span>&copy; <?= date('Y') ?> <?= e(APP_NAME) ?>. Campus event management.</span>
+        <span>&copy; <?= date('Y') ?> <?= e(APP_NAME) ?>. Welljoel | BI23110056.</span>
         <span>
             <a href="<?= e(BASE_URL) ?>browse_events.php">Browse events</a>
             <?php if (!is_logged_in()): ?>&nbsp;&middot;&nbsp;<a href="<?= e(BASE_URL) ?>auth/register.php">Organise an event</a><?php endif; ?>
