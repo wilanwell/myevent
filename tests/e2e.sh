@@ -38,7 +38,7 @@ tok()  { curl -s -b "$(jar "$1")" -c "$(jar "$1")" "$BASE/$2" | grep -o 'name="c
 
 cleanup() {
     for p in $(sql "SELECT poster_path FROM events e JOIN users u ON u.user_id = e.created_by WHERE u.email LIKE 'qa\\_%@example.test' AND poster_path IS NOT NULL"); do
-        rm -f "$ROOT/uploads/events/${p:?}"
+        rm -f "$ROOT/public/uploads/events/${p:?}"
     done
     sql "DELETE n FROM notifications n JOIN users u ON n.user_id = u.user_id WHERE u.email LIKE 'qa\\_%@example.test';
          DELETE FROM events WHERE created_by IN (SELECT user_id FROM users WHERE email LIKE 'qa\\_%@example.test');
@@ -80,8 +80,8 @@ create_event() { local t; t=$(tok a users/create_event.php)
          -F "category_id=1" -F "contact_no=0123456789" -F "venue=Hall" -F "event_date=2030-01-01" -F "event_time=10:00" -F "mode=Physical" \
          -F "reg_close_date=2029-12-31" -F "max_participants=1" -F "fee=0" -F "remarks=r" -F "visibility=Public" -F "poster=@$2" "$BASE/users/create_event.php"; }
 r=$(create_event "QA Evil Event" "$WORK/evil.png"); check "PHP disguised as PNG is rejected" '[[ "$r" == 200* ]]'
-if ls "$ROOT/uploads/events" | grep -q '\.php'; then fail "no PHP file in uploads"; else pass "no PHP file in uploads"; fi
-r=$(create_event "QA Real Event" "$ROOT/assets/img/logo.png"); check "event with real PNG is created" '[[ "$r" == *my_events.php ]]'
+if ls "$ROOT/public/uploads/events" | grep -q '\.php'; then fail "no PHP file in uploads"; else pass "no PHP file in uploads"; fi
+r=$(create_event "QA Real Event" "$ROOT/public/assets/img/logo.png"); check "event with real PNG is created" '[[ "$r" == *my_events.php ]]'
 EV=$(sql "SELECT event_id FROM events WHERE event_name = 'QA Real Event' ORDER BY event_id DESC LIMIT 1")
 POSTER=$(sql "SELECT poster_path FROM events WHERE event_id = $EV")
 check "poster stored with a random name" '[[ "$POSTER" =~ ^event_[0-9a-f]{24}\.png$ ]]'
@@ -110,6 +110,14 @@ st=$(sql "SELECT approval_status FROM registrations WHERE reg_id = $REG"); check
 n=$(sql "SELECT COUNT(*) FROM audit_log WHERE action = 'registration.approve' AND target_id = $REG"); check "approval is in the audit log" '[ "$n" = 1 ]'
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/users/delete.php"); check "non-admin cannot use admin actions ($r)" '[ "$r" = 403 ]'
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "non-admin cannot read the audit log ($r)" '[ "$r" = 403 ]'
+
+echo "== Web root (only public/ is served)"
+for path in .env config.php include/security.php lang/ms.php database/schema.sql tools/backup.php storage/logs/.gitkeep \
+            vendor/autoload.php composer.json phpunit.xml tests/e2e.sh .git/HEAD README.md public/.htaccess uploads/.htaccess; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/$path")
+    check "$path is not served ($code)" '[ "$code" = 403 ] || [ "$code" = 404 ]'
+done
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/assets/css/app.css"); check "public assets are served ($code)" '[ "$code" = 200 ]'
 
 echo "== Ticket QR check-in"
 ticket=$(curl -s -b "$(jar b)" "$BASE/users/generate_ticket.php?event_id=$EV")

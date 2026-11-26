@@ -75,7 +75,7 @@ if (!in_array('--db-only', $argv, true)) {
     $tar = "$dir/myevent_{$stamp}_uploads.tar";
     try {
         $archive = new PharData($tar);
-        $archive->buildFromDirectory(ROOT_PATH . '/uploads', '/\.(jpe?g|png|gif|webp)$/i');
+        $archive->buildFromDirectory(PUBLIC_PATH . '/uploads', '/\.(jpe?g|png|gif|webp)$/i');
         $archive->compress(Phar::GZ);
         unset($archive);
         @unlink($tar);

@@ -36,16 +36,30 @@ expose_php = Off
 
 Upload everything **except** local data:
 
-- do **not** upload `.env`, `storage/logs/*`, `storage/backups/*`, `storage/mail/*`, `uploads/events/*`, `uploads/profiles/*`
-- `vendor/` (test tools from Composer) is not needed on the server; `.htaccess` blocks it, `tests/` and `.github/` anyway
+- do **not** upload `.env`, `storage/logs/*`, `storage/backups/*`, `storage/mail/*`, `public/uploads/events/*`, `public/uploads/profiles/*`
+- `vendor/`, `tests/` and `.github/` are not needed on the server (they are never served anyway)
 - **do** upload the `.htaccess` files (they are hidden on some systems; enable "show hidden files")
 
-With Git on the server: `git clone <your-repo> myevent` — `.gitignore` already excludes the local data above.
+With Git on the server: `git clone https://github.com/wilanwell/myevent.git myevent` — `.gitignore` already excludes the local data above.
 
-**cPanel:** use *File Manager* (upload a zip and *Extract*) or *Git Version Control*. Put the folder
-inside `public_html` (for example `public_html/events`).
-
+**cPanel:** use *File Manager* (upload a zip and *Extract*) or *Git Version Control*.
 **VPS:** for example `/var/www/myevent`, owned by your deploy user, with the web server group able to read it.
+
+### The web root is `public/`
+
+Only `public/` should be reachable over the web. Choose one of these, best first:
+
+1. **Point the (sub)domain at `public/`** (cleanest). *cPanel:* upload the project to `/home/cpaneluser/myevent`,
+   outside `public_html`, then under *Domains* set the domain's or subdomain's **Document Root** to
+   `/home/cpaneluser/myevent/public`. *VPS:* `DocumentRoot /var/www/myevent/public` (section 6).
+2. **Main domain whose root must stay `public_html`**: upload the project to `/home/cpaneluser/myevent` and make
+   `public_html` a link to its `public/` folder (cPanel *Terminal*:
+   `mv ~/public_html ~/public_html.old && ln -s ~/myevent/public ~/public_html`). Ask the host if there is no terminal.
+3. **Last resort, a sub-folder such as `public_html/events`**: upload the whole project there. The root `.htaccess`
+   routes every request into `public/` and refuses everything else, so `.env` and the code stay unreachable as long
+   as the host honours `.htaccess` (`php tools/check_production.php` tests this).
+
+Set `APP_URL` to the address people type (for example `https://events.example.edu.my`), never with `/public` in it.
 
 ---
 
@@ -63,7 +77,7 @@ inside `public_html` (for example `public_html/events`).
    - VPS: edit the password in `database/create_app_user.sql`, then `mysql -u root -p < database/create_app_user.sql`.
 
 **Moving existing data from your laptop instead?** Export with `php tools/backup.php --db-only`, then import
-that `.sql.gz` (phpMyAdmin accepts `.gz`) instead of `schema.sql`, and copy `uploads/events` and `uploads/profiles`
+that `.sql.gz` (phpMyAdmin accepts `.gz`) instead of `schema.sql`, and copy `public/uploads/events` and `public/uploads/profiles`
 across. Remove or re-password any `@myevent.test` demo accounts afterwards.
 
 ---
@@ -108,12 +122,12 @@ BACKUP_KEEP=14
 
 ## 5. Folder permissions
 
-PHP must be able to write to `storage/logs`, `storage/backups`, `storage/mail`, `uploads/events`, `uploads/profiles`.
+PHP must be able to write to `storage/logs`, `storage/backups`, `storage/mail`, `public/uploads/events`, `public/uploads/profiles`.
 
 - cPanel: usually already true (folders `755`, files `644`).
-- VPS: `sudo chown -R deploy:www-data /var/www/myevent && sudo chmod -R 775 /var/www/myevent/storage /var/www/myevent/uploads`
+- VPS: `sudo chown -R deploy:www-data /var/www/myevent && sudo chmod -R 775 /var/www/myevent/storage /var/www/myevent/public/uploads`
 
-Uploaded files can never run as code: `uploads/.htaccess` blocks scripts.
+Uploaded files can never run as code: `public/uploads/.htaccess` blocks scripts.
 
 ---
 
@@ -130,8 +144,8 @@ Once `APP_URL` starts with `https://`, MyEvent redirects plain HTTP to HTTPS, ma
 ```apache
 <VirtualHost *:443>
     ServerName events.example.edu.my
-    DocumentRoot /var/www/myevent
-    <Directory /var/www/myevent>
+    DocumentRoot /var/www/myevent/public
+    <Directory /var/www/myevent/public>
         AllowOverride All
         Require all granted
     </Directory>
@@ -163,8 +177,8 @@ UPDATE users SET role = 'Admin' WHERE email = 'you@example.edu.my';
 | Backup (database + uploads) | `php /path/to/myevent/tools/backup.php` | daily, e.g. 02:00 |
 | Housekeeping | `php /path/to/myevent/tools/maintenance.php` | daily, e.g. 03:00 |
 
-- cPanel: *Cron Jobs* → e.g. `*/5 * * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/send_mail.php >/dev/null 2>&1`
-  and `0 2 * * * /usr/local/bin/php /home/cpaneluser/public_html/events/tools/backup.php >/dev/null 2>&1`
+- cPanel: *Cron Jobs* → e.g. `*/5 * * * * /usr/local/bin/php /home/cpaneluser/myevent/tools/send_mail.php >/dev/null 2>&1`
+  and `0 2 * * * /usr/local/bin/php /home/cpaneluser/myevent/tools/backup.php >/dev/null 2>&1`
   (the PHP path is shown on that page).
 - VPS: `crontab -e` with the same lines (use `which php` for the path).
 - Windows server / XAMPP: *Task Scheduler* → action `C:\xampp\php\php.exe` with argument `C:\xampp\htdocs\myevent\tools\backup.php`.
@@ -203,12 +217,12 @@ Fix every **FAIL**. Then point an uptime monitor at `https://events.example.edu.
 
 0. Make sure the new version passes its checks: CI is green, or `bash tests/run.sh` passes locally (see README, Tests).
 1. `php tools/backup.php` (always back up first).
-2. Upload the new code (or `git pull`). Keep your `.env` and `uploads/`.
+2. Upload the new code (or `git pull`). Keep your `.env` and `public/uploads/`.
 3. Apply any new files in `database/migrations/` in name order, using an admin database account.
 4. `php tools/check_production.php`.
 
 **Rolling back:** restore the last backup (`gzip -dc ... | mysql ...`), extract the matching
-`_uploads.tar.gz` into `uploads/`, and redeploy the previous code version.
+`_uploads.tar.gz` into `public/uploads/`, and redeploy the previous code version.
 
 ---
 
@@ -218,7 +232,8 @@ Fix every **FAIL**. Then point an uptime monitor at `https://events.example.edu.
 |---|---|
 | "Unexpected error" on every page | Wrong DB settings in `.env`; details are in `storage/logs/php-error.log` |
 | CSS missing / 404 on every link | `APP_URL` does not match the real address (check http vs https and the sub-folder) |
-| `.env` or `include/` reachable | `.htaccess` ignored: enable `AllowOverride All` (VPS) or ask the host |
+| `.env` or `include/` reachable | The document root is not `public/` and `.htaccess` is ignored: point the root at `public/` (section 2) |
+| Every page is 404, or URLs contain `/public/` | Document root and `APP_URL` disagree: `APP_URL` is the public address, without `/public` |
 | Password-reset emails never arrive | `MAIL_DRIVER` still `log`, wrong SMTP password, or the provider blocks the From address |
 | Times or deadlines an hour or more off | `APP_TIMEZONE` not set to your local zone |
 | Old tickets no longer scan | `APP_KEY` was changed after tickets were issued |

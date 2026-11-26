@@ -72,7 +72,8 @@ set_exception_handler(function (Throwable $ex) {
 /* --- 3. URLs and paths ---------------------------------------------- */
 // APP_URL comes from configuration, never from the (spoofable) Host header.
 define('BASE_URL', rtrim(env('APP_URL', 'http://localhost/myevent'), '/') . '/');
-define('ROOT_PATH', APP_ROOT);
+define('ROOT_PATH', APP_ROOT);                // project root: code, storage, .env (never served)
+define('PUBLIC_PATH', APP_ROOT . '/public');  // web root: pages, assets/, uploads/
 define('IS_HTTPS', strncmp(BASE_URL, 'https://', 8) === 0);
 
 define('BASE_PATH_ASSETS', BASE_URL . 'assets');

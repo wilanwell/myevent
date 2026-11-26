@@ -3,7 +3,7 @@
 Campus event management system: event announcement, registration, organiser
 approval, attendance tracking, notifications and participant exports.
 
-**Stack:** PHP 8.1+ (mysqli), MariaDB 10.4+ / MySQL 8.0+, Apache 2.4 (`mod_rewrite`/`.htaccess` enabled).
+**Stack:** PHP 8.1+ (mysqli), MariaDB 10.4+ / MySQL 8.0+, Apache 2.4 (`mod_rewrite`/`.htaccess` enabled). Web root: `public/`.
 
 > Deploying to a real server? Follow **[DEPLOY.md](DEPLOY.md)** and finish with `php tools/check_production.php`.
 
@@ -21,7 +21,7 @@ approval, attendance tracking, notifications and participant exports.
    mysql -u root myevent < database/schema.sql
    mysql -u root myevent < database/seed.sql   # optional demo data
    ```
-4. Open http://localhost/myevent.
+4. Open http://localhost/myevent. (The root `.htaccess` routes requests into `public/`, so the address has no `/public`.)
 
 Generate `APP_KEY` (signs ticket QR codes) and put it in `.env`:
 ```
@@ -142,7 +142,7 @@ Three layers, all run by CI (`.github/workflows/ci.yml`) on every push and pull 
 |---|---|---|
 | **Lint** `php tools/lint.php` | Every PHP file parses | PHP only |
 | **PHPUnit** `vendor/bin/phpunit` | 125 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log, report figures and charts, translations and per-recipient email language | MySQL/MariaDB |
-| **End-to-end** `bash tests/e2e.sh` | 86 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
+| **End-to-end** `bash tests/e2e.sh` | 102 HTTP checks against the running app: web root isolation, CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
 
 ### First time
 
@@ -181,36 +181,50 @@ accounts and removes them afterwards. Override `BASE`, `MYSQL`, `MYSQL_OPTS`, `D
 
 ## Project layout
 
+Only `public/` is served by the web server; everything else (code, `.env`, data, tools) sits outside the web root.
+
+```
+myevent/
+├── public/                 web root: the only folder reachable over HTTP
+│   ├── index.php, browse_events.php, event_detail.php, event_calendar.php, lang.php, health.php
+│   ├── auth/  users/  admin/   pages (participant, organiser and admin areas)
+│   ├── assets/             css/, js/, img/
+│   └── uploads/            event posters and profile photos (scripts blocked)
+├── config.php              bootstrap, loaded by every page
+├── include/                application code (security, helpers, mailer, notifications, waitlist, reports, i18n)
+│   ├── layout/  partials/
+├── lang/ms.php             Malay translations
+├── database/               schema.sql, seed.sql, migrations/
+├── storage/                logs/, backups/, mail/ (runtime data)
+├── tools/                  command-line jobs: send_mail, backup, maintenance, check_production, lint, i18n
+├── tests/                  PHPUnit (Unit, Integration, Support), e2e.sh, run.sh
+├── .github/workflows/      CI
+├── .env                    local settings (never committed)
+└── .htaccess               fallback: routes every request into public/
+```
+
 | Path | Purpose |
 |---|---|
-| `config.php` | Bootstrap: `.env`, error handling, hardened session, DB connection, CSRF check for every POST |
+| `config.php` | Bootstrap: `.env`, error handling, hardened session, language, DB connection, CSRF check for every POST. Defines `ROOT_PATH` (project) and `PUBLIC_PATH` (web root) |
 | `include/security.php` | `e()`, CSRF, `require_login()` / `require_admin()`, safe image upload, login throttling |
 | `include/helpers.php` | Media URLs, fee/date helpers, `datestub()`, `status_badge()`, pagination, `db_all()` / `db_value()` |
 | `include/layout/` | `app_start` / `app_end` (signed-in pages with sidebar) and `public_start` / `public_end` (public pages) |
-| `include/partials/` | Reusable fragments: event card, profile form |
+| `include/partials/` | Reusable fragments: event card, profile form, reports screen, language switch |
 | `include/event_editor.php` | Create/edit event screen shared by organisers and admins |
 | `include/participants_manager.php` | Review, check-in and CSV export screen shared by organisers and admins |
-| `assets/css/app.css` | Design system: tokens, layout shell and components |
-| `assets/css/public.css` | Public pages: hero, event cards, event detail, sign-in |
-| `assets/js/app.js` | Mobile menu, confirm dialogs, image preview, auto-submit filters |
-| `auth/`, `users/`, `admin/` | Pages. Each page sets `$page_title` / `$nav_active` and includes a layout |
-| `uploads/events`, `uploads/profiles` | User uploads (script execution blocked by `uploads/.htaccess`) |
+| `include/mailer.php`, `include/notify.php` | `send_mail()` (log and SMTP drivers), outbox queue, notifications in the recipient's language |
+| `include/reports.php` | Report queries and HTML charts |
+| `include/i18n.php`, `lang/ms.php`, `public/lang.php` | Translations: `__()` / `t()` / `_n()` / `ldate()`, the Malay dictionary, the EN/BM switch |
+| `public/assets/css/app.css` | Design system: tokens, layout shell and components |
+| `public/assets/css/public.css` | Public pages: hero, event cards, event detail, sign-in |
+| `public/assets/js/app.js` | Mobile menu, confirm dialogs, image preview, chart tooltips, auto-submit filters |
+| `public/auth/`, `public/users/`, `public/admin/` | Pages. Each page sets `$page_title` / `$nav_active` and includes a layout |
+| `public/uploads/` | User uploads (script execution blocked by `public/uploads/.htaccess`) |
+| `public/health.php` | Uptime-monitor endpoint: `ok` / 200 when PHP and the database respond |
 | `database/` | `schema.sql`, `seed.sql`, `migrations/` |
-| `include/mailer.php` | `send_mail()` with log and SMTP drivers |
-| `admin/audit.php` | Audit log of deletions, role changes, approvals, check-ins and password resets |
-| `tests/Unit`, `tests/Integration` | PHPUnit tests (`phpunit.xml`; helpers in `tests/Support`) |
-| `tests/e2e.sh`, `tests/run.sh` | End-to-end suite; runner for every check |
-| `.github/workflows/ci.yml` | CI: lint, PHPUnit on PHP 8.2 and 8.3, end-to-end under Apache |
-| `tools/lint.php` | Syntax check of every PHP file |
-| `include/reports.php`, `include/partials/report_view.php` | Report queries, HTML charts and the shared reports screen |
-| `include/i18n.php`, `lang/ms.php`, `lang.php` | Translations: `__()` / `t()` / `_n()` / `ldate()`, the Malay dictionary, the EN/BM switch |
-| `tools/i18n.php` | Lists untranslated or stale strings (CI runs it) |
-| `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
-| `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
-| `tools/send_mail.php` | Delivers queued emails and day-before reminders (cron every 5 minutes) |
-| `tools/maintenance.php` | Daily housekeeping: expired tokens, log rotation, orphaned uploads report |
-| `health.php` | Uptime-monitor endpoint: `ok` / 200 when PHP and the database respond |
-| `storage/logs`, `storage/mail` | PHP error log and development mailbox (not web-accessible) |
+| `tools/` | `send_mail.php` (cron every 5 min), `backup.php`, `maintenance.php`, `check_production.php`, `lint.php`, `i18n.php` |
+| `tests/` | PHPUnit suites (`phpunit.xml`), `e2e.sh`, `run.sh`; CI in `.github/workflows/ci.yml` |
+| `storage/logs`, `storage/backups`, `storage/mail` | Error log, backups, development mailbox |
 
 ### Adding a page
 
@@ -237,4 +251,4 @@ Use the components in `app.css` (`card`, `table`, `btn`, `badge`, `field`, `empt
 - Use prepared statements for every query that includes user input.
 - Use `upload_image()` for uploads; never trust the original file name or extension.
 - A Content-Security-Policy is sent on every page. Inline `<script>` blocks need `nonce="<?= e(CSP_NONCE) ?>"`,
-  and inline event handlers (`onclick="..."`) are not allowed: use `assets/js/app.js` or a nonce'd script.
+  and inline event handlers (`onclick="..."`) are not allowed: use `public/assets/js/app.js` or a nonce'd script.

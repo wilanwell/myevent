@@ -92,10 +92,10 @@ $failed
     : report('PASS', 'No failed emails in the last 7 days');
 
 section('Files');
-foreach (['storage/logs', 'storage/backups', POSTER_DIR, AVATAR_DIR] as $dir) {
+foreach (['storage/logs', 'storage/backups', 'public/' . POSTER_DIR, 'public/' . AVATAR_DIR] as $dir) {
     is_writable(ROOT_PATH . '/' . $dir) ? report('PASS', "$dir is writable") : report('FAIL', "$dir is not writable by PHP");
 }
-foreach (['uploads/.htaccess', 'storage/.htaccess', 'include/.htaccess', 'database/.htaccess', 'tools/.htaccess', 'tests/.htaccess'] as $guard) {
+foreach (['.htaccess', 'public/.htaccess', 'public/uploads/.htaccess', 'storage/.htaccess', 'include/.htaccess', 'database/.htaccess', 'tools/.htaccess', 'tests/.htaccess'] as $guard) {
     is_file(ROOT_PATH . '/' . $guard) ? report('PASS', "$guard present") : report('FAIL', "$guard is missing");
 }
 $latest = glob(ROOT_PATH . '/storage/backups/myevent_*.sql.gz') ?: [];
@@ -107,7 +107,7 @@ $latest && filemtime($latest[0]) > time() - 2 * 86400
 section('Over HTTP (' . BASE_URL . ')');
 $ctx = stream_context_create(['http' => ['method' => 'HEAD', 'ignore_errors' => true, 'timeout' => 5, 'follow_location' => 0],
                               'ssl' => ['verify_peer' => true]]);
-foreach (['.env', 'storage/logs/php-error.log', 'include/security.php', 'database/schema.sql', 'tools/backup.php', 'vendor/autoload.php', 'phpunit.xml', 'composer.json'] as $path) {
+foreach (['.env', 'config.php', 'storage/logs/php-error.log', 'include/security.php', 'database/schema.sql', 'tools/backup.php', 'vendor/autoload.php', 'phpunit.xml', 'composer.json'] as $path) {
     $headers = @get_headers(BASE_URL . $path, false, $ctx);
     if (!$headers) {
         report('WARN', "Could not reach $path to test it", 'Run this check on the server, or check the URL by hand.');

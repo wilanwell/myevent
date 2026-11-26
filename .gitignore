@@ -11,10 +11,10 @@ storage/logs/*
 storage/backups/*
 
 # User uploads (the .htaccess that blocks script execution IS tracked)
-uploads/events/*
-uploads/profiles/*
-!uploads/.htaccess
-!uploads/events/.gitkeep
-!uploads/profiles/.gitkeep
+public/uploads/events/*
+public/uploads/profiles/*
+!public/uploads/.htaccess
+!public/uploads/events/.gitkeep
+!public/uploads/profiles/.gitkeep
 storage/mail/*
 !storage/mail/.gitkeep

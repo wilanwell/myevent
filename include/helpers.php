@@ -4,19 +4,19 @@
  * Loaded by config.php after the security helpers.
  */
 
-/** Upload folders, relative to ROOT_PATH. All user uploads live under uploads/. */
+/** Upload folders, relative to PUBLIC_PATH (and to BASE_URL). All user uploads live under public/uploads/. */
 const POSTER_DIR = 'uploads/events';
 const AVATAR_DIR = 'uploads/profiles';
 
 /**
  * Public URL for an event poster, with a placeholder when the file is missing.
- * Bundled demo posters in assets/img/ are also accepted.
+ * Bundled demo posters in public/assets/img/ are also accepted.
  */
 function poster_url(?string $file): string
 {
     if ($file && basename($file) === $file) {
         foreach ([POSTER_DIR, 'assets/img'] as $dir) {
-            if (is_file(ROOT_PATH . '/' . $dir . '/' . $file)) {
+            if (is_file(PUBLIC_PATH . '/' . $dir . '/' . $file)) {
                 return BASE_URL . $dir . '/' . rawurlencode($file);
             }
         }
@@ -27,7 +27,7 @@ function poster_url(?string $file): string
 /** Public URL for a profile picture, or null when the user has none. */
 function avatar_url(?string $file): ?string
 {
-    if ($file && basename($file) === $file && is_file(ROOT_PATH . '/' . AVATAR_DIR . '/' . $file)) {
+    if ($file && basename($file) === $file && is_file(PUBLIC_PATH . '/' . AVATAR_DIR . '/' . $file)) {
         return BASE_URL . AVATAR_DIR . '/' . rawurlencode($file);
     }
     return null;

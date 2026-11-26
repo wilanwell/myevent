@@ -107,7 +107,7 @@ jobs:
           MAIL_DRIVER=log
           MAIL_FROM=no-reply@myevent.example
           EOF
-          chmod -R a+rwX storage uploads
+          chmod -R a+rwX storage public/uploads
 
       # The official PHP image with Apache, sharing the runner's network so it reaches
       # MariaDB on 127.0.0.1 and serves http://localhost/myevent with .htaccess enabled.

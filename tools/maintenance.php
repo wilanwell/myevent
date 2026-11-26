@@ -60,7 +60,7 @@ $used = array_flip(array_merge(
 $delete = in_array('--delete-orphans', $argv, true);
 $orphans = 0;
 foreach ([POSTER_DIR, AVATAR_DIR] as $sub) {
-    foreach (glob(ROOT_PATH . '/' . $sub . '/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE) ?: [] as $file) {
+    foreach (glob(PUBLIC_PATH . '/' . $sub . '/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE) ?: [] as $file) {
         if (!isset($used[basename($file)]) && filemtime($file) < time() - 86400) {
             $orphans++;
             echo ($delete ? 'Deleted orphan: ' : 'Orphan (not deleted): ') . $sub . '/' . basename($file) . "\n";

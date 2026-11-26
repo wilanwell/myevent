@@ -182,7 +182,7 @@ const ALLOWED_IMAGE_TYPES = [
  * name is random with an extension derived from the detected type.
  *
  * @param array|null $file      Entry from $_FILES
- * @param string     $subdir    Directory relative to ROOT_PATH (e.g. 'uploads')
+ * @param string     $subdir    Directory relative to PUBLIC_PATH (e.g. POSTER_DIR)
  * @param string     $prefix    File name prefix
  * @param int        $maxBytes  Maximum size in bytes
  * @return array{0: ?string, 1: ?string} [stored file name, error message]
@@ -208,7 +208,7 @@ function upload_image(?array $file, string $subdir, string $prefix = 'img', int 
         return [null, __('Only JPG, PNG, GIF or WEBP images are allowed.')];
     }
 
-    $dir = ROOT_PATH . '/' . trim($subdir, '/');
+    $dir = PUBLIC_PATH . '/' . trim($subdir, '/');
     if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
         return [null, __('Upload folder is not available.')];
     }
@@ -226,7 +226,7 @@ function delete_upload(?string $name, string $subdir): void
     if (!$name || basename($name) !== $name) {
         return;
     }
-    $path = ROOT_PATH . '/' . trim($subdir, '/') . '/' . $name;
+    $path = PUBLIC_PATH . '/' . trim($subdir, '/') . '/' . $name;
     if (is_file($path)) {
         @unlink($path);
     }
