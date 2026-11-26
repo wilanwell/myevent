@@ -185,9 +185,8 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
 /* ---------- Auth pages ---------- */
 .auth { min-height: calc(100vh - 68px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .auth-aside {
-    position: relative; overflow: hidden;
+    position: relative; overflow: clip;   /* clip, not hidden: hidden would stop the sticky text below */
     background: var(--board-bg); color: rgba(255, 255, 255, 0.82); padding: var(--sp-16);
-    display: flex; flex-direction: column; justify-content: center;
     background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.16) 1px, transparent 0);
     background-size: 22px 22px;
 }
@@ -196,6 +195,12 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     border-radius: 50%; background: radial-gradient(closest-side, rgba(245, 165, 36, 0.5), transparent);
 }
 .auth-aside > * { position: relative; z-index: 1; }
+/* The text stays centred in the visible screen while a long form (sign-up) scrolls past. */
+.auth-aside > .auth-aside-inner {
+    position: sticky; top: calc(68px + var(--sp-16));
+    min-height: calc(100vh - 68px - 2 * var(--sp-16));
+    display: flex; flex-direction: column; justify-content: center;
+}
 .auth-aside h1 { color: #fff; font-size: clamp(2.2rem, 3.6vw, 3.2rem); letter-spacing: -0.04em; line-height: 1; max-width: 12ch; }
 .auth-aside p { max-width: 40ch; margin: var(--sp-5) 0 0; font-size: 1.1rem; }
 .auth-aside ul { list-style: none; padding: 0; margin: var(--sp-8) 0 0; display: grid; gap: var(--sp-4); }
@@ -231,6 +236,7 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     .ticket { transform: none; max-width: 540px; margin: 0 auto; }
     .detail-aside { position: static; }
     .auth-aside { padding: var(--sp-10) var(--sp-6); }
+    .auth-aside > .auth-aside-inner { position: relative; top: auto; min-height: 0; }
     .auth-aside ul { display: none; }
 }
 @media (max-width: 760px) {

@@ -77,8 +77,10 @@ include ROOT_PATH . '/include/layout/public_start.php';
 
 <div class="auth">
     <section class="auth-aside">
-        <h1><?= t('Almost there.') ?></h1>
-        <p><?= t('Choose a new password for {email}. You will use it the next time you log in.', ['email' => $reset['email']]) ?></p>
+        <div class="auth-aside-inner">
+            <h1><?= t('Almost there.') ?></h1>
+            <p><?= t('Choose a new password for {email}. You will use it the next time you log in.', ['email' => $reset['email']]) ?></p>
+        </div>
     </section>
 
     <section class="auth-main">

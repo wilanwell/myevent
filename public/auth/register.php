@@ -23,13 +23,15 @@ include ROOT_PATH . '/include/layout/public_start.php';
 
 <div class="auth">
     <section class="auth-aside">
-        <h1><?= t('Join the campus calendar.') ?></h1>
-        <p><?= t('One account lets you register for events and publish your own. It is free for students, staff and the public.') ?></p>
-        <ul>
-            <li><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <?= t('Find workshops, talks and competitions') ?></li>
-            <li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> <?= t('Publish events and take registrations') ?></li>
-            <li><i class="fa-solid fa-file-csv" aria-hidden="true"></i> <?= t('Export participant lists in one click') ?></li>
-        </ul>
+        <div class="auth-aside-inner">
+            <h1><?= t('Join the campus calendar.') ?></h1>
+            <p><?= t('One account lets you register for events and publish your own. It is free for students, staff and the public.') ?></p>
+            <ul>
+                <li><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <?= t('Find workshops, talks and competitions') ?></li>
+                <li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> <?= t('Publish events and take registrations') ?></li>
+                <li><i class="fa-solid fa-file-csv" aria-hidden="true"></i> <?= t('Export participant lists in one click') ?></li>
+            </ul>
+        </div>
     </section>
 
     <section class="auth-main">

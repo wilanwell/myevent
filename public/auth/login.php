@@ -18,13 +18,15 @@ include ROOT_PATH . '/include/layout/public_start.php';
 
 <div class="auth">
     <section class="auth-aside">
-        <h1><?= t('Welcome back.') ?></h1>
-        <p><?= t('Log in to see your tickets, follow up on registrations and manage the events you organise.') ?></p>
-        <ul>
-            <li><i class="fa-solid fa-ticket" aria-hidden="true"></i> <?= t('Tickets for every approved registration') ?></li>
-            <li><i class="fa-regular fa-bell" aria-hidden="true"></i> <?= t('Notifications when organisers respond') ?></li>
-            <li><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> <?= t('Approvals and check-in for your own events') ?></li>
-        </ul>
+        <div class="auth-aside-inner">
+            <h1><?= t('Welcome back.') ?></h1>
+            <p><?= t('Log in to see your tickets, follow up on registrations and manage the events you organise.') ?></p>
+            <ul>
+                <li><i class="fa-solid fa-ticket" aria-hidden="true"></i> <?= t('Tickets for every approved registration') ?></li>
+                <li><i class="fa-regular fa-bell" aria-hidden="true"></i> <?= t('Notifications when organisers respond') ?></li>
+                <li><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> <?= t('Approvals and check-in for your own events') ?></li>
+            </ul>
+        </div>
     </section>
 
     <section class="auth-main">

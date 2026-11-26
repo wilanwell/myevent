@@ -75,8 +75,10 @@ include ROOT_PATH . '/include/layout/public_start.php';
 
 <div class="auth">
     <section class="auth-aside">
-        <h1><?= t('Locked out?') ?></h1>
-        <p><?= t('Enter your email and we will send you a link to choose a new password. The link works once and expires in an hour.') ?></p>
+        <div class="auth-aside-inner">
+            <h1><?= t('Locked out?') ?></h1>
+            <p><?= t('Enter your email and we will send you a link to choose a new password. The link works once and expires in an hour.') ?></p>
+        </div>
     </section>
 
     <section class="auth-main">
