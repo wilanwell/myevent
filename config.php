@@ -53,6 +53,7 @@ if (!is_dir(APP_ROOT . '/storage/logs')) {
 ini_set('error_log', APP_ROOT . '/storage/logs/php-error.log');
 
 require_once APP_ROOT . '/include/security.php';
+require_once APP_ROOT . '/include/i18n.php';
 require_once APP_ROOT . '/include/helpers.php';
 require_once APP_ROOT . '/include/mailer.php';
 require_once APP_ROOT . '/include/notify.php';
@@ -64,8 +65,8 @@ set_exception_handler(function (Throwable $ex) {
         . ' in ' . $ex->getFile() . ':' . $ex->getLine());
     http_response_code(500);
     $detail = DEBUG_MODE ? $ex->getMessage() . ' (' . basename($ex->getFile()) . ':' . $ex->getLine() . ')'
-                         : 'Something went wrong on our side. Please try again later.';
-    render_error_page('Unexpected error', $detail);
+                         : __('Something went wrong on our side. Please try again later.');
+    render_error_page(__('Unexpected error'), $detail);
 });
 
 /* --- 3. URLs and paths ---------------------------------------------- */
@@ -147,6 +148,9 @@ if (!empty($_SESSION['loggedin'])) {
     }
     $_SESSION['last_activity'] = time();
 }
+
+// Language: the account's choice is copied into the session at login and when it changes.
+set_locale(PHP_SAPI === 'cli' ? default_locale() : detect_locale());
 
 /* --- 6. Database ---------------------------------------------------- */
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);

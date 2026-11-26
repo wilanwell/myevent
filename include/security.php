@@ -62,8 +62,8 @@ function csrf_verify(): void
     if (!is_string($sent) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $sent)) {
         http_response_code(403);
         render_error_page(
-            'Session expired',
-            'Your form session has expired or the request could not be verified. Please go back, refresh the page and try again.'
+            __('Session expired'),
+            __('Your form session has expired or the request could not be verified. Please go back, refresh the page and try again.')
         );
     }
 }
@@ -101,7 +101,7 @@ function require_admin(): void
     require_login();
     if (!is_admin()) {
         http_response_code(403);
-        render_error_page('Access denied', 'You do not have permission to view this page.');
+        render_error_page(__('Access denied'), __('You do not have permission to view this page.'));
     }
 }
 
@@ -111,7 +111,7 @@ function require_post(): void
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         http_response_code(405);
         header('Allow: POST');
-        render_error_page('Method not allowed', 'This action must be submitted from a form.');
+        render_error_page(__('Method not allowed'), __('This action must be submitted from a form.'));
     }
 }
 
@@ -130,8 +130,9 @@ function end_session(): void
 }
 
 /** Log out and send to the login page, e.g. when the signed-in account no longer exists. */
-function force_logout(string $message = 'Please log in again.'): void
+function force_logout(?string $message = null): void
 {
+    $message ??= __('Please log in again.');
     end_session();
     session_start();
     flash('info', $message);
@@ -193,28 +194,28 @@ function upload_image(?array $file, string $subdir, string $prefix = 'img', int 
         return [null, null];
     }
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        return [null, 'The file could not be uploaded. Please try again.'];
+        return [null, __('The file could not be uploaded. Please try again.')];
     }
     if ($file['size'] > $maxBytes) {
-        return [null, 'The image must be smaller than ' . round($maxBytes / 1048576) . 'MB.'];
+        return [null, __('The image must be smaller than {n} MB.', ['n' => round($maxBytes / 1048576)])];
     }
     if (!is_uploaded_file($file['tmp_name'])) {
-        return [null, 'Invalid upload.'];
+        return [null, __('Invalid upload.')];
     }
 
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
     if (!isset(ALLOWED_IMAGE_TYPES[$mime]) || @getimagesize($file['tmp_name']) === false) {
-        return [null, 'Only JPG, PNG, GIF or WEBP images are allowed.'];
+        return [null, __('Only JPG, PNG, GIF or WEBP images are allowed.')];
     }
 
     $dir = ROOT_PATH . '/' . trim($subdir, '/');
     if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
-        return [null, 'Upload folder is not available.'];
+        return [null, __('Upload folder is not available.')];
     }
 
     $name = $prefix . '_' . bin2hex(random_bytes(12)) . '.' . ALLOWED_IMAGE_TYPES[$mime];
     if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
-        return [null, 'The file could not be saved.'];
+        return [null, __('The file could not be saved.')];
     }
     return [$name, null];
 }
@@ -288,7 +289,7 @@ function render_error_page(string $title, string $message): void
         header('Content-Type: text/html; charset=utf-8');
     }
     $home = defined('BASE_URL') ? BASE_URL : '/';
-    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+    echo '<!DOCTYPE html><html lang="' . e(function_exists('html_lang') ? html_lang() : 'en') . '"><head><meta charset="UTF-8">'
         . '<meta name="viewport" content="width=device-width, initial-scale=1">'
         . '<title>' . e($title) . ' | ' . e(defined('APP_NAME') ? APP_NAME : 'MyEvent') . '</title>'
         . '<style>body{font-family:system-ui,sans-serif;background:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}'
@@ -296,7 +297,7 @@ function render_error_page(string $title, string $message): void
         . 'h1{font-size:1.4rem;margin:0 0 12px;color:#0f172a}p{color:#475569;line-height:1.6}'
         . 'a{display:inline-block;margin-top:16px;padding:10px 22px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none}</style>'
         . '</head><body><div class="card"><h1>' . e($title) . '</h1><p>' . e($message) . '</p>'
-        . '<a href="javascript:history.back()">Go back</a> <a href="' . e($home) . '">Home</a></div></body></html>';
+        . '<a href="javascript:history.back()">' . e(__('Go back')) . '</a> <a href="' . e($home) . '">' . e(__('Home')) . '</a></div></body></html>';
     exit;
 }
 

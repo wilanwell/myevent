@@ -22,25 +22,25 @@ $_SESSION['old_input'] = compact('category', 'name', 'email', 'phone', 'organiza
 
 $errors = [];
 if ($name === '' || mb_strlen($name) > 255) {
-    $errors[] = 'Please enter your full name.';
+    $errors[] = __('Please enter your full name.');
 }
 if (!in_array($category, $allowedCategories, true)) {
-    $errors[] = 'Please choose a valid category.';
+    $errors[] = __('Please choose a valid category.');
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255) {
-    $errors[] = 'Please enter a valid email address.';
+    $errors[] = __('Please enter a valid email address.');
 }
 if ($phone !== '' && !preg_match('/^[0-9+\- ]{7,20}$/', $phone)) {
-    $errors[] = 'Please enter a valid phone number.';
+    $errors[] = __('Please enter a valid phone number.');
 }
 if ($organization === '' || mb_strlen($organization) > 255) {
-    $errors[] = 'Please enter your organization or faculty.';
+    $errors[] = __('Please enter your organisation or faculty.');
 }
 if (strlen($password) < 8 || !preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password)) {
-    $errors[] = 'Password must be at least 8 characters and include a letter and a number.';
+    $errors[] = __('Password must be at least 8 characters and include a letter and a number.');
 }
 if (!$interests) {
-    $errors[] = 'Please select at least one event recommendation.';
+    $errors[] = __('Please choose at least one kind of event you are interested in.');
 }
 
 if ($errors) {
@@ -57,7 +57,7 @@ $exists = (bool) $stmt->get_result()->fetch_row();
 $stmt->close();
 
 if ($exists) {
-    flash('error', 'This email is already registered. Please log in instead.');
+    flash('error', __('This email is already registered. Please log in instead.'));
     redirect('auth/register.php');
 }
 
@@ -65,13 +65,14 @@ $hash = password_hash($password, PASSWORD_DEFAULT);
 $recommendations = implode(', ', $interests);
 
 $stmt = $conn->prepare(
-    "INSERT INTO users (category, name, email, phone, organization, recommend_events, password, role)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'User')"
+    "INSERT INTO users (category, name, email, phone, organization, recommend_events, password, role, locale)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'User', ?)"
 );
-$stmt->bind_param('sssssss', $category, $name, $email, $phone, $organization, $recommendations, $hash);
+$locale = current_locale();
+$stmt->bind_param('ssssssss', $category, $name, $email, $phone, $organization, $recommendations, $hash, $locale);
 $stmt->execute();
 $stmt->close();
 
 unset($_SESSION['old_input']);
-flash('success', 'Registration successful! Please log in to MyEvent.');
+flash('success', __('Registration successful! Please log in to {app}.', ['app' => APP_NAME]));
 redirect('auth/login.php');

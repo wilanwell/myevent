@@ -13,7 +13,7 @@ DirectoryIndex index.php
 # .htaccess; this is a second layer and covers hosts that ignore nested files.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(\.git|\.github|include|storage|database|tests|tools|vendor)(/|$) - [R=404,L]
+    RewriteRule ^(\.git|\.github|include|storage|database|tests|tools|vendor|lang)(/|$) - [R=404,L]
 </IfModule>
 
 # --- Performance -------------------------------------------------------------

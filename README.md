@@ -69,6 +69,29 @@ to the audit log. Definitions: *registrations* are pending + approved places; *a
 only for events that have taken place. Queries live in `include/reports.php`; charts are plain HTML/CSS
 (no chart library), with hover and keyboard focus showing exact values.
 
+## Languages (English / Bahasa Melayu)
+
+The whole interface, every email and the dates (day and month names, PG/PTG) are available in English and
+Bahasa Melayu. The **EN | BM** switch sits in the top bar and the public menu.
+
+Which language is used: the account's choice (saved when someone switches, or the language in use when they
+registered) → the visitor's earlier choice (session, one-year cookie) → the browser's `Accept-Language` → `APP_LOCALE`
+(default `en`). Notifications and emails are written in the **recipient's** language, whoever triggers them.
+
+**Adding or changing text:** write it in English and wrap it:
+
+```php
+<?= t('Register for this event') ?>                          // escaped, for HTML
+<?= t('Organised by {name}', ['name' => $organiser]) ?>      // placeholders
+flash('success', __('Event published.'));                    // plain text
+<?= e(_n('{n} place left', '{n} places left', $left)) ?>     // plurals
+<?= e(ldate('l, j F Y', $event['event_date'])) ?>            // translated day and month names
+```
+
+Then add the Malay text to `lang/ms.php`. `php tools/i18n.php` lists what is missing (`--missing` prints
+ready-to-fill lines) and CI fails until every string is translated and no stale ones remain. Text stored by users
+(event names, categories, descriptions) is shown as entered.
+
 ## Email notifications
 
 Every notification appears under the bell icon and, unless the person switched it off in
@@ -118,8 +141,8 @@ Three layers, all run by CI (`.github/workflows/ci.yml`) on every push and pull 
 | Layer | What it covers | Needs |
 |---|---|---|
 | **Lint** `php tools/lint.php` | Every PHP file parses | PHP only |
-| **PHPUnit** `vendor/bin/phpunit` | 106 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log, report figures and charts | MySQL/MariaDB |
-| **End-to-end** `bash tests/e2e.sh` | 77 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
+| **PHPUnit** `vendor/bin/phpunit` | 125 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log, report figures and charts, translations and per-recipient email language | MySQL/MariaDB |
+| **End-to-end** `bash tests/e2e.sh` | 86 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
 
 ### First time
 
@@ -180,6 +203,8 @@ accounts and removes them afterwards. Override `BASE`, `MYSQL`, `MYSQL_OPTS`, `D
 | `.github/workflows/ci.yml` | CI: lint, PHPUnit on PHP 8.2 and 8.3, end-to-end under Apache |
 | `tools/lint.php` | Syntax check of every PHP file |
 | `include/reports.php`, `include/partials/report_view.php` | Report queries, HTML charts and the shared reports screen |
+| `include/i18n.php`, `lang/ms.php`, `lang.php` | Translations: `__()` / `t()` / `_n()` / `ldate()`, the Malay dictionary, the EN/BM switch |
+| `tools/i18n.php` | Lists untranslated or stale strings (CI runs it) |
 | `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
 | `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
 | `tools/send_mail.php` | Delivers queued emails and day-before reminders (cron every 5 minutes) |

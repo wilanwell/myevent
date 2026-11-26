@@ -54,7 +54,9 @@
     function syncThemeButtons() {
         var dark = window.myeventTheme && window.myeventTheme.get() === 'dark';
         document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {
-            btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+            // Labels come from the page so they follow the interface language.
+            btn.setAttribute('aria-label', dark ? (btn.getAttribute('data-label-light') || 'Switch to light theme')
+                                                : (btn.getAttribute('data-label-dark') || 'Switch to dark theme'));
         });
     }
     document.querySelectorAll('[data-theme-toggle]').forEach(function (btn) {

@@ -180,6 +180,26 @@ r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/reports.ph
 r=$(curl -s -o /dev/null -w '%{redirect_url}' "$BASE/users/reports.php"); check "reports need a login" '[[ "$r" == *auth/login.php ]]'
 r=$(curl -s -b "$(jar a)" -o /dev/null -w '%{http_code}' "$BASE/users/reports.php?range=custom&from=2026-01-01%27%20OR%201%3D1&to=x"); check "bad report dates are ignored ($r)" '[ "$r" = 200 ]'
 
+echo "== Language"
+curl -s -H 'Accept-Language: ms-MY,ms;q=0.9' "$BASE/index.php" | grep -q '<html lang="ms"' && pass "browser language picks Malay for visitors" || fail "browser language picks Malay for visitors"
+curl -s "$BASE/index.php" | grep -q '<html lang="en"' && pass "English by default" || fail "English by default"
+t=$(tok g index.php)
+r=$(curl -s -b "$(jar g)" -c "$(jar g)" -o /dev/null -w '%{http_code} %{redirect_url}' -d "csrf_token=$t&locale=ms&return=%2Fmyevent%2Fbrowse_events.php" "$BASE/lang.php")
+check "language switch returns to the same page ($r)" '[[ "$r" == "303 "*browse_events.php ]]'
+grep -q myevent_lang "$(jar g)" && pass "language remembered in a cookie" || fail "language remembered in a cookie"
+page=$(curl -s -b "$(jar g)" "$BASE/browse_events.php")
+echo "$page" | grep -q 'Cari acara' && echo "$page" | grep -q '<html lang="ms"' && pass "pages render in Malay after switching" || fail "pages render in Malay after switching"
+t=$(tok g index.php)
+r=$(curl -s -b "$(jar g)" -c "$(jar g)" -o /dev/null -w '%{redirect_url}' -d "csrf_token=$t&locale=ms&return=%2F%2Fevil.example%2Fx" "$BASE/lang.php")
+check "language switch refuses outside return addresses ($r)" '[[ "$r" != *evil.example* ]]'
+r=$(curl -s -b "$(jar g)" -o /dev/null -w '%{http_code}' -d "locale=ms" "$BASE/lang.php"); check "language switch needs a CSRF token ($r)" '[ "$r" = 403 ]'
+t=$(tok b users/dashboard.php)
+curl -s -b "$(jar b)" -c "$(jar b)" -o /dev/null -d "csrf_token=$t&locale=ms&return=%2Fmyevent%2Fusers%2Fdashboard.php" "$BASE/lang.php"
+st=$(sql "SELECT locale FROM users WHERE email = 'qa_b@example.test'"); check "signed-in choice is saved on the account ($st)" '[ "$st" = ms ]'
+curl -s -b "$(jar b)" "$BASE/users/dashboard.php" | grep -q 'Papan pemuka' && pass "dashboard in Malay" || fail "dashboard in Malay"
+t=$(tok b users/dashboard.php)
+curl -s -b "$(jar b)" -c "$(jar b)" -o /dev/null -d "csrf_token=$t&locale=en&return=%2Fmyevent%2Fusers%2Fdashboard.php" "$BASE/lang.php"
+
 echo "== Email notifications"
 n=$(mails qa_a@example.test "New registration"); check "organiser emailed about a new registration ($n)" '[ "$n" -ge 1 ]'
 n=$(mails qa_b@example.test "You're in"); check "participant emailed when approved ($n)" '[ "$n" -ge 1 ]'

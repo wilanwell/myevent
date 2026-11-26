@@ -9,6 +9,6 @@ require_login();
 $editor_event    = null;
 $editor_redirect = 'users/my_events.php';
 $editor_cancel   = 'my_events.php';
-$page_title      = 'Create event';
+$page_title      = __('Create event');
 $nav_active      = 'create_event';
 include ROOT_PATH . '/include/event_editor.php';

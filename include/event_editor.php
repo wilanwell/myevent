@@ -33,42 +33,42 @@ function event_input(mysqli $conn): array
 
     $errors = [];
     if ($d['event_name'] === '' || mb_strlen($d['event_name']) > 255) {
-        $errors['event_name'] = 'Enter an event name (up to 255 characters).';
+        $errors['event_name'] = __('Enter an event name (up to 255 characters).');
     }
     if ($d['venue'] === '' || mb_strlen($d['venue']) > 255) {
-        $errors['venue'] = 'Enter where the event takes place.';
+        $errors['venue'] = __('Enter where the event takes place.');
     }
     if (!valid_date($d['event_date'])) {
-        $errors['event_date'] = 'Choose the event date.';
+        $errors['event_date'] = __('Choose the event date.');
     }
     if (!valid_time($d['event_time'])) {
-        $errors['event_time'] = 'Choose a start time.';
+        $errors['event_time'] = __('Choose a start time.');
     }
     if ($d['end_time'] === '') {
         $d['end_time'] = null;
     } elseif (!valid_time($d['end_time'])) {
-        $errors['end_time'] = 'Choose a valid end time.';
+        $errors['end_time'] = __('Choose a valid end time.');
     } elseif (valid_time($d['event_time']) && substr($d['end_time'], 0, 5) <= substr($d['event_time'], 0, 5)) {
-        $errors['end_time'] = 'The event must end after it starts.';
+        $errors['end_time'] = __('The event must end after it starts.');
     }
     if (!in_array($d['mode'], ['Physical', 'Online', 'Hybrid'], true)) {
-        $errors['mode'] = 'Choose physical, online or hybrid.';
+        $errors['mode'] = __('Choose physical, online or hybrid.');
     }
     if (!in_array($d['visibility'], ['Public', 'Private'], true)) {
-        $errors['visibility'] = 'Choose who can find this event.';
+        $errors['visibility'] = __('Choose who can find this event.');
     }
     if (!db_value($conn, 'SELECT 1 FROM event_category WHERE category_id = ?', 'i', [$d['category_id']])) {
-        $errors['category_id'] = 'Choose a category.';
+        $errors['category_id'] = __('Choose a category.');
     }
     if ($d['reg_close_date'] === '') {
         $d['reg_close_date'] = $d['event_date'];
     } elseif (!valid_date($d['reg_close_date'])) {
-        $errors['reg_close_date'] = 'Choose a valid closing date.';
+        $errors['reg_close_date'] = __('Choose a valid closing date.');
     } elseif (valid_date($d['event_date']) && $d['reg_close_date'] > $d['event_date']) {
-        $errors['reg_close_date'] = 'Registration must close on or before the event date.';
+        $errors['reg_close_date'] = __('Registration must close on or before the event date.');
     }
     if ($d['contact_no'] !== '' && !preg_match('/^[0-9+\- ]{7,20}$/', $d['contact_no'])) {
-        $errors['contact_no'] = 'Enter a phone number with 7 to 20 digits.';
+        $errors['contact_no'] = __('Enter a phone number with 7 to 20 digits.');
     }
     return [$d, $errors];
 }
@@ -122,18 +122,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($editing) {
             $told = notify_event_changed($conn, $editor_event, array_merge($data, ['event_id' => $savedId]));
             if ($told) {
-                flash('info', "We let {$told} registered " . ($told === 1 ? 'person' : 'people') . ' know about the change.');
+                flash('info', _n('We let {n} registered person know about the change.', 'We let {n} registered people know about the change.', $told));
             }
             $moved = promote_waitlist($conn, $savedId);
             if ($moved) {
-                flash('info', $moved . ' ' . ($moved === 1 ? 'person' : 'people') . ' moved up from the waitlist into the new places.');
+                flash('info', _n('{n} person moved up from the waitlist into the new places.', '{n} people moved up from the waitlist into the new places.', $moved));
             }
         }
 
         if ($newPoster && $editing) {
             delete_upload($editor_event['poster_path'], POSTER_DIR);
         }
-        flash('success', $editing ? 'Event updated.' : 'Event published.');
+        flash('success', $editing ? __('Event updated.') : __('Event published.'));
         redirect($editor_redirect);
     }
 }
@@ -151,34 +151,34 @@ $invalid = static function (string $field) use ($errors): string {
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<a class="back-link" href="<?= e($editor_cancel) ?>"><i class="fa-solid fa-arrow-left"></i> Back</a>
+<a class="back-link" href="<?= e($editor_cancel) ?>"><i class="fa-solid fa-arrow-left"></i> <?= t('Back') ?></a>
 <div class="page-header card-narrow">
     <div>
-        <h1><?= $editing ? 'Edit event' : 'Create an event' ?></h1>
-        <p><?= $editing ? 'Changes are visible to participants straight away.' : 'Fill in the details participants need to decide and register.' ?></p>
+        <h1><?= $editing ? t('Edit event') : t('Create an event') ?></h1>
+        <p><?= $editing ? t('Changes are visible to participants straight away.') : t('Fill in the details participants need to decide and register.') ?></p>
     </div>
 </div>
 
 <?php if ($errors): ?>
-    <div class="flash flash-error card-narrow" role="alert">Please fix the highlighted fields and try again.</div>
+    <div class="flash flash-error card-narrow" role="alert"><?= t('Please fix the highlighted fields and try again.') ?></div>
 <?php endif; ?>
 
 <form method="POST" enctype="multipart/form-data" class="card card-narrow" novalidate>
     <?= csrf_field() ?>
     <div class="card-body">
         <div class="form-section">
-            <h2 class="form-section-title">About the event</h2>
-            <p class="form-section-desc">The name and description appear on the event page.</p>
+            <h2 class="form-section-title"><?= t('About the event') ?></h2>
+            <p class="form-section-desc"><?= t('The name and description appear on the event page.') ?></p>
             <div class="form-grid">
                 <div class="field span-2">
-                    <label for="ev-name">Event name <span class="req" aria-hidden="true">*</span></label>
+                    <label for="ev-name"><?= t('Event name') ?> <span class="req" aria-hidden="true">*</span></label>
                     <input id="ev-name" type="text" name="event_name" value="<?= e($data['event_name']) ?>" maxlength="255" required<?= $invalid('event_name') ?>>
                     <?= $err('event_name') ?>
                 </div>
                 <div class="field">
-                    <label for="ev-cat">Category <span class="req" aria-hidden="true">*</span></label>
+                    <label for="ev-cat"><?= t('Category') ?> <span class="req" aria-hidden="true">*</span></label>
                     <select id="ev-cat" name="category_id" required<?= $invalid('category_id') ?>>
-                        <option value="">Choose a category</option>
+                        <option value=""><?= t('Choose a category') ?></option>
                         <?php foreach ($categories as $c): ?>
                             <option value="<?= (int) $c['category_id'] ?>"<?= (int) $data['category_id'] === (int) $c['category_id'] ? ' selected' : '' ?>><?= e($c['categoryName']) ?></option>
                         <?php endforeach; ?>
@@ -186,47 +186,47 @@ include ROOT_PATH . '/include/layout/app_start.php';
                     <?= $err('category_id') ?>
                 </div>
                 <div class="field">
-                    <label for="ev-vis">Who can find it</label>
+                    <label for="ev-vis"><?= t('Who can find it') ?></label>
                     <select id="ev-vis" name="visibility"<?= $invalid('visibility') ?>>
-                        <option value="Public"<?= $data['visibility'] === 'Public' ? ' selected' : '' ?>>Public: listed for everyone</option>
-                        <option value="Private"<?= $data['visibility'] === 'Private' ? ' selected' : '' ?>>Private: only people with the link</option>
+                        <option value="Public"<?= $data['visibility'] === 'Public' ? ' selected' : '' ?>><?= t('Public: listed for everyone') ?></option>
+                        <option value="Private"<?= $data['visibility'] === 'Private' ? ' selected' : '' ?>><?= t('Private: only people with the link') ?></option>
                     </select>
                 </div>
                 <div class="field span-2">
-                    <label for="ev-desc">Description</label>
+                    <label for="ev-desc"><?= t('Description') ?></label>
                     <textarea id="ev-desc" name="description" rows="4"><?= e($data['description']) ?></textarea>
                 </div>
             </div>
         </div>
 
         <div class="form-section">
-            <h2 class="form-section-title">When and where</h2>
+            <h2 class="form-section-title"><?= t('When and where') ?></h2>
             <div class="form-grid">
                 <div class="field">
-                    <label for="ev-date">Date <span class="req" aria-hidden="true">*</span></label>
+                    <label for="ev-date"><?= t('Date') ?> <span class="req" aria-hidden="true">*</span></label>
                     <input id="ev-date" type="date" name="event_date" value="<?= e($data['event_date']) ?>" required<?= $invalid('event_date') ?>>
                     <?= $err('event_date') ?>
                 </div>
                 <div class="field">
-                    <label for="ev-time">Start time <span class="req" aria-hidden="true">*</span></label>
+                    <label for="ev-time"><?= t('Start time') ?> <span class="req" aria-hidden="true">*</span></label>
                     <input id="ev-time" type="time" name="event_time" value="<?= e(substr((string) $data['event_time'], 0, 5)) ?>" required<?= $invalid('event_time') ?>>
                     <?= $err('event_time') ?>
                 </div>
                 <div class="field">
-                    <label for="ev-end">End time</label>
+                    <label for="ev-end"><?= t('End time') ?></label>
                     <input id="ev-end" type="time" name="end_time" value="<?= e(substr((string) ($data['end_time'] ?? ''), 0, 5)) ?>"<?= $invalid('end_time') ?>>
-                    <?= $err('end_time') ?: '<span class="hint">Optional. Calendars assume two hours if empty.</span>' ?>
+                    <?= $err('end_time') ?: '<span class="hint">' . t('Optional. Calendars assume two hours if empty.') . '</span>' ?>
                 </div>
                 <div class="field">
-                    <label for="ev-venue">Venue <span class="req" aria-hidden="true">*</span></label>
-                    <input id="ev-venue" type="text" name="venue" value="<?= e($data['venue']) ?>" maxlength="255" placeholder="e.g. Dewan Canselor or a meeting link" required<?= $invalid('venue') ?>>
+                    <label for="ev-venue"><?= t('Venue') ?> <span class="req" aria-hidden="true">*</span></label>
+                    <input id="ev-venue" type="text" name="venue" value="<?= e($data['venue']) ?>" maxlength="255" placeholder="<?= t('e.g. Dewan Canselor or a meeting link') ?>" required<?= $invalid('venue') ?>>
                     <?= $err('venue') ?>
                 </div>
                 <div class="field">
-                    <span class="label" id="ev-mode-label">Mode <span class="req" aria-hidden="true">*</span></span>
+                    <span class="label" id="ev-mode-label"><?= t('Mode') ?> <span class="req" aria-hidden="true">*</span></span>
                     <div class="choice-row" role="radiogroup" aria-labelledby="ev-mode-label">
                         <?php foreach (['Physical', 'Online', 'Hybrid'] as $m): ?>
-                            <label class="choice"><input type="radio" name="mode" value="<?= $m ?>"<?= $data['mode'] === $m ? ' checked' : '' ?>> <?= $m ?></label>
+                            <label class="choice"><input type="radio" name="mode" value="<?= $m ?>"<?= $data['mode'] === $m ? ' checked' : '' ?>> <?= e(status_label($m)) ?></label>
                         <?php endforeach; ?>
                     </div>
                     <?= $err('mode') ?>
@@ -235,50 +235,50 @@ include ROOT_PATH . '/include/layout/app_start.php';
         </div>
 
         <div class="form-section">
-            <h2 class="form-section-title">Registration</h2>
+            <h2 class="form-section-title"><?= t('Registration') ?></h2>
             <div class="form-grid">
                 <div class="field">
-                    <label for="ev-close">Registration closes</label>
+                    <label for="ev-close"><?= t('Registration closes') ?></label>
                     <input id="ev-close" type="date" name="reg_close_date" value="<?= e($data['reg_close_date']) ?>"<?= $invalid('reg_close_date') ?>>
-                    <?= $err('reg_close_date') ?: '<span class="hint">Leave empty to close on the event date.</span>' ?>
+                    <?= $err('reg_close_date') ?: '<span class="hint">' . t('Leave empty to close on the event date.') . '</span>' ?>
                 </div>
                 <div class="field">
-                    <label for="ev-max">Places available</label>
-                    <input id="ev-max" type="number" name="max_participants" min="0" step="1" value="<?= (int) $data['max_participants'] ?: '' ?>" placeholder="Unlimited">
-                    <span class="hint">Leave empty for no limit.</span>
+                    <label for="ev-max"><?= t('Places available') ?></label>
+                    <input id="ev-max" type="number" name="max_participants" min="0" step="1" value="<?= (int) $data['max_participants'] ?: '' ?>" placeholder="<?= t('Unlimited') ?>">
+                    <span class="hint"><?= t('Leave empty for no limit.') ?></span>
                 </div>
                 <div class="field">
-                    <label for="ev-fee">Fee (RM)</label>
-                    <input id="ev-fee" type="number" name="fee" min="0" step="0.01" value="<?= (float) $data['fee'] > 0 ? e(number_format((float) $data['fee'], 2, '.', '')) : '' ?>" placeholder="Free">
-                    <span class="hint">Leave empty for a free event.</span>
+                    <label for="ev-fee"><?= t('Fee (RM)') ?></label>
+                    <input id="ev-fee" type="number" name="fee" min="0" step="0.01" value="<?= (float) $data['fee'] > 0 ? e(number_format((float) $data['fee'], 2, '.', '')) : '' ?>" placeholder="<?= t('Free') ?>">
+                    <span class="hint"><?= t('Leave empty for a free event.') ?></span>
                 </div>
                 <div class="field">
-                    <label for="ev-contact">Contact number</label>
+                    <label for="ev-contact"><?= t('Contact number') ?></label>
                     <input id="ev-contact" type="tel" name="contact_no" value="<?= e($data['contact_no']) ?>" maxlength="20" placeholder="012-3456789"<?= $invalid('contact_no') ?>>
                     <?= $err('contact_no') ?>
                 </div>
                 <div class="field span-2">
-                    <label for="ev-remarks">Notes for participants</label>
-                    <textarea id="ev-remarks" name="remarks" rows="2" placeholder="What to bring, dress code, parking…"><?= e($data['remarks']) ?></textarea>
+                    <label for="ev-remarks"><?= t('Notes for participants') ?></label>
+                    <textarea id="ev-remarks" name="remarks" rows="2" placeholder="<?= t('What to bring, dress code, parking…') ?>"><?= e($data['remarks']) ?></textarea>
                 </div>
             </div>
         </div>
 
         <div class="form-section">
-            <h2 class="form-section-title">Poster</h2>
+            <h2 class="form-section-title"><?= t('Poster') ?></h2>
             <div class="poster-field">
-                <img class="poster-preview" id="posterPreview" src="<?= e(poster_url($data['poster_path'] ?? null)) ?>" alt="Poster preview">
+                <img class="poster-preview" id="posterPreview" src="<?= e(poster_url($data['poster_path'] ?? null)) ?>" alt="<?= t('Poster preview') ?>">
                 <div class="field">
-                    <label for="ev-poster"><?= $editing ? 'Replace poster' : 'Upload a poster' ?></label>
+                    <label for="ev-poster"><?= $editing ? t('Replace poster') : t('Upload a poster') ?></label>
                     <input id="ev-poster" type="file" name="poster" accept="image/jpeg,image/png,image/gif,image/webp" data-preview="#posterPreview"<?= $invalid('poster') ?>>
-                    <?= $err('poster') ?: '<span class="hint">JPG, PNG, GIF or WEBP, up to 5&nbsp;MB. Landscape 16:9 looks best.</span>' ?>
+                    <?= $err('poster') ?: '<span class="hint">' . t('JPG, PNG, GIF or WEBP, up to 5 MB. Landscape 16:9 looks best.') . '</span>' ?>
                 </div>
             </div>
         </div>
 
         <div class="form-actions">
-            <a class="btn btn-ghost" href="<?= e($editor_cancel) ?>">Cancel</a>
-            <button type="submit" class="btn btn-primary"><?= $editing ? 'Save changes' : 'Publish event' ?></button>
+            <a class="btn btn-ghost" href="<?= e($editor_cancel) ?>"><?= t('Cancel') ?></a>
+            <button type="submit" class="btn btn-primary"><?= $editing ? t('Save changes') : t('Publish event') ?></button>
         </div>
     </div>
 </form>

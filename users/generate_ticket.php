@@ -18,7 +18,7 @@ $data = db_all($conn,
     'ii', [$event_id, current_user_id()])[0] ?? null;
 
 if (!$data) {
-    flash('error', 'Your ticket is available once the organiser approves your registration.');
+    flash('error', __('Your ticket is available once the organiser approves your registration.'));
     redirect('users/my_registrations.php');
 }
 
@@ -28,15 +28,15 @@ $qr_url = ticket_checkin_url($code);
 $ts = strtotime($data['event_date']);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= e(html_lang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ticket: <?= e($data['event_name']) ?> | <?= e(APP_NAME) ?></title>
+    <title><?= t('Ticket: {name}', ['name' => $data['event_name']]) ?> | <?= e(APP_NAME) ?></title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=13">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=13">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=16">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=16">
     <style>
         body { padding: 40px 20px; }
         .ticket-page { max-width: 640px; margin: 0 auto; }
@@ -60,42 +60,42 @@ $ts = strtotime($data['event_date']);
 <body class="app">
 <div class="ticket-page">
     <div class="ticket-actions">
-        <a class="btn btn-ghost" href="my_registrations.php"><i class="fa-solid fa-arrow-left"></i> My registrations</a>
+        <a class="btn btn-ghost" href="my_registrations.php"><i class="fa-solid fa-arrow-left"></i> <?= t('My registrations') ?></a>
         <span>
-            <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>event_calendar.php?id=<?= (int) $data['event_id'] ?>"><i class="fa-regular fa-calendar-plus"></i> Add to calendar</a>
-            <button type="button" class="btn btn-primary" data-print><i class="fa-solid fa-print"></i> Print or save as PDF</button>
+            <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>event_calendar.php?id=<?= (int) $data['event_id'] ?>"><i class="fa-regular fa-calendar-plus"></i> <?= t('Add to calendar') ?></a>
+            <button type="button" class="btn btn-primary" data-print><i class="fa-solid fa-print"></i> <?= t('Print or save as PDF') ?></button>
         </span>
     </div>
 
-    <article class="ticket" aria-label="Ticket for <?= e($data['event_name']) ?>">
+    <article class="ticket" aria-label="<?= t('Ticket for {name}', ['name' => $data['event_name']]) ?>">
         <div class="ticket-stub" aria-hidden="true">
-            <span class="ticket-weekday"><?= date('l', $ts) ?></span>
+            <span class="ticket-weekday"><?= e(ldate('l', $ts)) ?></span>
             <span class="ticket-day"><?= date('j', $ts) ?></span>
-            <span class="ticket-month"><?= date('M Y', $ts) ?></span>
+            <span class="ticket-month"><?= e(ldate('M Y', $ts)) ?></span>
         </div>
         <div class="ticket-body">
-            <span class="ticket-label"><?= e(APP_NAME) ?> admission ticket</span>
+            <span class="ticket-label"><?= t('{app} admission ticket', ['app' => APP_NAME]) ?></span>
             <h1 class="ticket-title"><?= e($data['event_name']) ?></h1>
             <ul class="ticket-facts">
-                <li><i class="fa-regular fa-calendar" aria-hidden="true"></i> <?= e(date('l, j F Y', $ts)) ?>, <?= e(date('g:i A', strtotime($data['event_time']))) ?></li>
-                <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <?= e($data['venue']) ?> (<?= e($data['mode']) ?>)</li>
+                <li><i class="fa-regular fa-calendar" aria-hidden="true"></i> <?= e(ldate('l, j F Y', $ts)) ?>, <?= e(ldate('g:i A', $data['event_time'])) ?></li>
+                <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> <?= e($data['venue']) ?> (<?= e(status_label($data['mode'])) ?>)</li>
                 <li><i class="fa-regular fa-user" aria-hidden="true"></i> <?= e($data['user_name']) ?>, <?= e($data['email']) ?></li>
-                <?php if ($data['organiser']): ?><li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Organised by <?= e($data['organiser']) ?></li><?php endif; ?>
+                <?php if ($data['organiser']): ?><li><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> <?= t('Organised by {name}', ['name' => $data['organiser']]) ?></li><?php endif; ?>
             </ul>
             <div class="ticket-code ticket-qr">
-                <div id="qr" role="img" aria-label="QR code for ticket <?= e($code) ?>" data-qr="<?= e($qr_url) ?>"></div>
+                <div id="qr" role="img" aria-label="<?= t('QR code for ticket {code}', ['code' => $code]) ?>" data-qr="<?= e($qr_url) ?>" data-offline="<?= t('QR unavailable offline. Use the ticket code.') ?>"></div>
                 <span>
-                    <span class="cell-muted">Ticket code</span><br><b><?= e($code) ?></b><br>
-                    <span class="cell-muted">Registered <?= e(date('j M Y', strtotime($data['registration_date']))) ?></span>
+                    <span class="cell-muted"><?= t('Ticket code') ?></span><br><b><?= e($code) ?></b><br>
+                    <span class="cell-muted"><?= t('Registered {date}', ['date' => ldate('j M Y', $data['registration_date'])]) ?></span>
                 </span>
             </div>
         </div>
     </article>
 
     <?php if (trim((string) $data['remarks']) !== ''): ?>
-        <p class="ticket-note"><strong>Before you come:</strong> <?= e($data['remarks']) ?></p>
+        <p class="ticket-note"><strong><?= t('Before you come:') ?></strong> <?= e($data['remarks']) ?></p>
     <?php endif; ?>
-    <p class="ticket-note">Show this ticket on your phone or printed at the entrance. The organiser scans the QR code to check you in.</p>
+    <p class="ticket-note"><?= t('Show this ticket on your phone or printed at the entrance. The organiser scans the QR code to check you in.') ?></p>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
         integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
@@ -106,7 +106,7 @@ $ts = strtotime($data['event_date']);
         if (window.QRCode && box) {
             new QRCode(box, { text: box.getAttribute('data-qr'), width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
         } else if (box) {
-            box.textContent = 'QR unavailable offline. Use the ticket code.';
+            box.textContent = box.getAttribute('data-offline');
             box.style.fontSize = '12px';
         }
         var print = document.querySelector('[data-print]');

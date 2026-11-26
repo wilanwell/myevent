@@ -55,10 +55,11 @@ final class ChartsTest extends TestCase
 
     public function testChartsEscapeLabels(): void
     {
-        $html = render_bar_list([['label' => '<script>x</script>', 'count' => 1]], 'things');
+        $html = render_bar_list([['label' => '<script>x</script>', 'count' => 1]], 'registrations');
         $this->assertStringNotContainsString('<script>', $html);
 
-        $this->assertStringContainsString('No things yet', render_bar_list([['label' => 'A', 'count' => 0]], 'things'));
+        $this->assertStringContainsString('No registrations yet', render_bar_list([['label' => 'A', 'count' => 0]], 'registrations'));
+        $this->assertStringContainsString('No ratings yet', render_bar_list([['label' => 'A', 'count' => 0]], 'ratings'));
         $this->assertStringContainsString('No registrations in this period', render_column_chart([], 'registrations', 'x'));
     }
 

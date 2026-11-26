@@ -163,7 +163,7 @@ function email_html(string $heading, string $intro, ?string $buttonLabel = null,
           . 'text-decoration:none;font-weight:700;font-size:15px;padding:12px 22px;border-radius:10px">' . e($buttonLabel) . '</a></p>'
         : '';
 
-    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    return '<!DOCTYPE html><html lang="' . e(current_locale()) . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
         . '<title>' . e($heading) . '</title></head>'
         . '<body style="margin:0;padding:0;background:#f4f6fb;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#2a3044">'
         . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 12px"><tr><td align="center">'
@@ -178,8 +178,8 @@ function email_html(string $heading, string $intro, ?string $buttonLabel = null,
         . '</td></tr>'
         . '<tr><td style="padding:18px 4px;font-size:12px;line-height:1.6;color:#646b80">'
         . ($footnote !== '' ? e($footnote) . '<br>' : '')
-        . 'You are receiving this because you have an account on ' . e(APP_NAME) . '. '
-        . '<a href="' . e(BASE_URL) . 'users/profile.php#email-settings" style="color:#2b44e0">Change email settings</a>'
+        . e(__('You are receiving this because you have an account on {app}.', ['app' => APP_NAME])) . ' '
+        . '<a href="' . e(BASE_URL) . 'users/profile.php#email-settings" style="color:#2b44e0">' . e(__('Change email settings')) . '</a>'
         . '</td></tr></table></td></tr></table></body></html>';
 }
 

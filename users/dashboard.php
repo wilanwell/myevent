@@ -33,38 +33,38 @@ $organising = db_all($conn,
      FROM events e WHERE e.created_by = ? AND e.event_date >= CURDATE()
      ORDER BY e.event_date ASC LIMIT 5", 'i', [$user_id]);
 
-$page_title = 'Dashboard';
+$page_title = __('Dashboard');
 $nav_active = 'dashboard';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
 <div class="page-header">
     <div>
-        <h1>Welcome back, <?= e(strtok($_SESSION['name'] ?? '', ' ')) ?></h1>
-        <p>Here is what is coming up for you.</p>
+        <h1><?= t('Welcome back, {name}', ['name' => strtok($_SESSION['name'] ?? '', ' ')]) ?></h1>
+        <p><?= t('Here is what is coming up for you.') ?></p>
     </div>
     <div class="page-header-actions">
-        <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>browse_events.php"><i class="fa-solid fa-magnifying-glass"></i> Browse events</a>
-        <a class="btn btn-primary" href="create_event.php"><i class="fa-solid fa-plus"></i> Create event</a>
+        <a class="btn btn-secondary" href="<?= e(BASE_URL) ?>browse_events.php"><i class="fa-solid fa-magnifying-glass"></i> <?= t('Browse events') ?></a>
+        <a class="btn btn-primary" href="create_event.php"><i class="fa-solid fa-plus"></i> <?= t('Create event') ?></a>
     </div>
 </div>
 
 <div class="stats">
     <a class="stat" href="my_registrations.php">
         <span class="stat-icon"><i class="fa-solid fa-ticket"></i></span>
-        <span><span class="stat-value"><?= $my_registrations ?></span><br><span class="stat-label">Registrations</span></span>
+        <span><span class="stat-value"><?= $my_registrations ?></span><br><span class="stat-label"><?= t('Registrations') ?></span></span>
     </a>
     <a class="stat" href="my_registrations.php">
         <span class="stat-icon is-amber"><i class="fa-regular fa-clock"></i></span>
-        <span><span class="stat-value"><?= $my_pending ?></span><br><span class="stat-label">Awaiting approval</span></span>
+        <span><span class="stat-value"><?= $my_pending ?></span><br><span class="stat-label"><?= t('Awaiting approval') ?></span></span>
     </a>
     <a class="stat" href="my_events.php">
         <span class="stat-icon is-green"><i class="fa-solid fa-calendar-check"></i></span>
-        <span><span class="stat-value"><?= $my_created_events ?></span><br><span class="stat-label">Events I organise</span></span>
+        <span><span class="stat-value"><?= $my_created_events ?></span><br><span class="stat-label"><?= t('Events I organise') ?></span></span>
     </a>
     <a class="stat" href="<?= e(BASE_URL) ?>browse_events.php">
         <span class="stat-icon is-sky"><i class="fa-solid fa-door-open"></i></span>
-        <span><span class="stat-value"><?= $open_events ?></span><br><span class="stat-label">Open for registration</span></span>
+        <span><span class="stat-value"><?= $open_events ?></span><br><span class="stat-label"><?= t('Open for registration') ?></span></span>
     </a>
 </div>
 
@@ -72,8 +72,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
 <section class="card rate-prompt">
     <div class="card-header">
         <div>
-            <h2 class="card-title">How was it?</h2>
-            <p class="card-subtitle">Rate the events you attended recently. It takes ten seconds and helps organisers improve.</p>
+            <h2 class="card-title"><?= t('How was it?') ?></h2>
+            <p class="card-subtitle"><?= t('Rate the events you attended recently. It takes ten seconds and helps organisers improve.') ?></p>
         </div>
     </div>
     <div class="table-wrap">
@@ -82,7 +82,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
             <?php foreach ($to_rate as $row): ?>
                 <tr>
                     <td><div class="event-cell"><?= datestub($row['event_date']) ?><span class="event-cell-title"><?= e($row['event_name']) ?></span></div></td>
-                    <td class="actions"><a class="btn btn-primary btn-sm" href="feedback.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-regular fa-star"></i> Rate event</a></td>
+                    <td class="actions"><a class="btn btn-primary btn-sm" href="feedback.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-regular fa-star"></i> <?= t('Rate event') ?></a></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -94,8 +94,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
 <div class="grid-2">
     <section class="card">
         <div class="card-header">
-            <h2 class="card-title">My upcoming events</h2>
-            <a class="btn btn-ghost btn-sm" href="my_registrations.php">View all</a>
+            <h2 class="card-title"><?= t('My upcoming events') ?></h2>
+            <a class="btn btn-ghost btn-sm" href="my_registrations.php"><?= t('View all') ?></a>
         </div>
         <?php if ($upcoming): ?>
             <div class="table-wrap">
@@ -108,7 +108,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                     <?= datestub($row['event_date']) ?>
                                     <div>
                                         <a class="event-cell-title" href="<?= e(BASE_URL) ?>event_detail.php?id=<?= (int) $row['event_id'] ?>"><?= e($row['event_name']) ?></a>
-                                        <div class="event-cell-meta"><?= e(date('g:i A', strtotime($row['event_time']))) ?>, <?= e($row['venue']) ?></div>
+                                        <div class="event-cell-meta"><?= e(ldate('g:i A', $row['event_time'])) ?>, <?= e($row['venue']) ?></div>
                                     </div>
                                 </div>
                             </td>
@@ -121,17 +121,17 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <?php else: ?>
             <div class="empty-state">
                 <i class="fa-regular fa-calendar"></i>
-                <h3>No upcoming events</h3>
-                <p>Find a workshop, talk or competition and register in a few clicks.</p>
-                <a class="btn btn-primary" href="<?= e(BASE_URL) ?>browse_events.php">Browse events</a>
+                <h3><?= t('No upcoming events') ?></h3>
+                <p><?= t('Find a workshop, talk or competition and register in a few clicks.') ?></p>
+                <a class="btn btn-primary" href="<?= e(BASE_URL) ?>browse_events.php"><?= t('Browse events') ?></a>
             </div>
         <?php endif; ?>
     </section>
 
     <section class="card">
         <div class="card-header">
-            <h2 class="card-title">Events I organise</h2>
-            <a class="btn btn-ghost btn-sm" href="my_events.php">Manage</a>
+            <h2 class="card-title"><?= t('Events I organise') ?></h2>
+            <a class="btn btn-ghost btn-sm" href="my_events.php"><?= t('Manage') ?></a>
         </div>
         <?php if ($organising): ?>
             <div class="table-wrap">
@@ -147,9 +147,9 @@ include ROOT_PATH . '/include/layout/app_start.php';
                             </td>
                             <td class="actions">
                                 <?php if ((int) $row['pending'] > 0): ?>
-                                    <a class="badge badge-warning" href="manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><?= (int) $row['pending'] ?> to review</a>
+                                    <a class="badge badge-warning" href="manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><?= t('{n} to review', ['n' => (int) $row['pending']]) ?></a>
                                 <?php else: ?>
-                                    <span class="cell-muted">Up to date</span>
+                                    <span class="cell-muted"><?= t('Up to date') ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -160,9 +160,9 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <?php else: ?>
             <div class="empty-state">
                 <i class="fa-solid fa-bullhorn"></i>
-                <h3>You are not organising anything yet</h3>
-                <p>Create an event to start taking registrations.</p>
-                <a class="btn btn-primary" href="create_event.php">Create event</a>
+                <h3><?= t('You are not organising anything yet') ?></h3>
+                <p><?= t('Create an event to start taking registrations.') ?></p>
+                <a class="btn btn-primary" href="create_event.php"><?= t('Create event') ?></a>
             </div>
         <?php endif; ?>
     </section>

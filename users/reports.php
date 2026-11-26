@@ -14,9 +14,9 @@ if (($_GET['export'] ?? '') === 'csv') {
 
 $rp_organisers = [];
 $rp_events_url = 'manage_participants.php?event_id=';
-$rp_intro      = 'Registrations, attendance and ratings for the events you organise.';
+$rp_intro      = __('Registrations, attendance and ratings for the events you organise.');
 
-$page_title = 'Reports';
+$page_title = __('Reports');
 $nav_active = 'reports';
 include ROOT_PATH . '/include/layout/app_start.php';
 include ROOT_PATH . '/include/partials/report_view.php';

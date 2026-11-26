@@ -19,11 +19,11 @@ $event = db_all($conn,
      WHERE e.event_id = ? AND r.user_id = ? AND r.approval_status = 'Approved'", 'ii', [$event_id, $user_id])[0] ?? null;
 
 if (!$event) {
-    flash('error', 'You can rate an event once your registration for it has been approved.');
+    flash('error', __('You can rate an event once your registration for it has been approved.'));
     redirect('users/my_registrations.php?show=past');
 }
 if (strtotime($event['event_date'] . ' ' . $event['event_time']) > time()) {
-    flash('info', 'You can rate this event once it has started.');
+    flash('info', __('You can rate this event once it has started.'));
     redirect('users/my_registrations.php');
 }
 
@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment = trim((string) ($_POST['comment'] ?? ''));
 
     if ($rating < 1 || $rating > 5) {
-        $error = 'Choose a rating from 1 to 5 stars.';
+        $error = __('Choose a rating from 1 to 5 stars.');
     } elseif (mb_strlen($comment) > 1000) {
-        $error = 'Keep your comment to 1000 characters or fewer.';
+        $error = __('Keep your comment to 1000 characters or fewer.');
     } else {
         $stmt = $conn->prepare(
             'INSERT INTO feedback (event_id, user_id, rating, comment) VALUES (?, ?, ?, ?)
@@ -48,23 +48,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $stmt->close();
 
-        flash('success', $existing ? 'Your feedback was updated.' : 'Thanks for your feedback! It helps organisers run better events.');
+        flash('success', $existing ? __('Your feedback was updated.') : __('Thanks for your feedback! It helps organisers run better events.'));
         redirect('users/my_registrations.php?show=past');
     }
 }
 
-$labels = [1 => 'Poor', 2 => 'Fair', 3 => 'Good', 4 => 'Very good', 5 => 'Excellent'];
+$labels = [1 => __('Poor'), 2 => __('Fair'), 3 => __('Good'), 4 => __('Very good'), 5 => __('Excellent')];
 
-$page_title = 'Rate event';
+$page_title = __('Rate event');
 $nav_active = 'my_registrations';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
-<a class="back-link" href="my_registrations.php?show=past"><i class="fa-solid fa-arrow-left"></i> My registrations</a>
+<a class="back-link" href="my_registrations.php?show=past"><i class="fa-solid fa-arrow-left"></i> <?= t('My registrations') ?></a>
 <div class="page-header card-narrow">
     <div>
-        <h1><?= $existing ? 'Edit your feedback' : 'How was it?' ?></h1>
-        <p>Tell the organiser how <strong><?= e($event['event_name']) ?></strong> went. Your rating counts towards the event's public score; only the organiser sees your comment.</p>
+        <h1><?= $existing ? t('Edit your feedback') : t('How was it?') ?></h1>
+        <p><?= th('Tell the organiser how {event} went. Your rating counts towards the event\'s public score; only the organiser sees your comment.', ['event' => '<strong>' . e($event['event_name']) . '</strong>']) ?></p>
     </div>
 </div>
 
@@ -79,35 +79,35 @@ include ROOT_PATH . '/include/layout/app_start.php';
                 <?= datestub($event['event_date']) ?>
                 <div>
                     <div class="event-cell-title"><?= e($event['event_name']) ?></div>
-                    <div class="event-cell-meta"><?= e(date('l, j F Y', strtotime($event['event_date']))) ?>, <?= e($event['venue']) ?></div>
+                    <div class="event-cell-meta"><?= e(ldate('l, j F Y', $event['event_date'])) ?>, <?= e($event['venue']) ?></div>
                 </div>
             </div>
         </div>
 
         <div class="form-section">
             <fieldset class="field fieldset-reset">
-                <legend class="label">Your rating <span class="req" aria-hidden="true">*</span></legend>
-                <div class="star-input" role="radiogroup" aria-label="Rating out of 5">
+                <legend class="label"><?= t('Your rating') ?> <span class="req" aria-hidden="true">*</span></legend>
+                <div class="star-input" role="radiogroup" aria-label="<?= t('Rating out of 5') ?>">
                     <?php for ($i = 5; $i >= 1; $i--): ?>
                         <input type="radio" id="star<?= $i ?>" name="rating" value="<?= $i ?>"<?= $rating === $i ? ' checked' : '' ?> required>
-                        <label for="star<?= $i ?>" title="<?= $labels[$i] ?>"><i class="fa-solid fa-star" aria-hidden="true"></i><span class="sr-only"><?= $i ?> star<?= $i > 1 ? 's' : '' ?>, <?= $labels[$i] ?></span></label>
+                        <label for="star<?= $i ?>" title="<?= e($labels[$i]) ?>"><i class="fa-solid fa-star" aria-hidden="true"></i><span class="sr-only"><?= e(_n('{n} star', '{n} stars', $i)) ?>, <?= e($labels[$i]) ?></span></label>
                     <?php endfor; ?>
                 </div>
-                <span class="hint">1 = poor, 5 = excellent</span>
+                <span class="hint"><?= t('1 = poor, 5 = excellent') ?></span>
             </fieldset>
         </div>
 
         <div class="form-section">
             <div class="field">
-                <label for="fb-comment">Comment <span class="cell-muted">(optional)</span></label>
-                <textarea id="fb-comment" name="comment" rows="5" maxlength="1000" placeholder="What worked well? What could be better next time?"><?= e($comment) ?></textarea>
-                <span class="hint">Only the organiser and administrators can read this.</span>
+                <label for="fb-comment"><?= t('Comment') ?> <span class="cell-muted"><?= t('(optional)') ?></span></label>
+                <textarea id="fb-comment" name="comment" rows="5" maxlength="1000" placeholder="<?= t('What worked well? What could be better next time?') ?>"><?= e($comment) ?></textarea>
+                <span class="hint"><?= t('Only the organiser and administrators can read this.') ?></span>
             </div>
         </div>
 
         <div class="form-actions">
-            <a class="btn btn-ghost" href="my_registrations.php?show=past">Cancel</a>
-            <button type="submit" class="btn btn-primary"><?= $existing ? 'Update feedback' : 'Send feedback' ?></button>
+            <a class="btn btn-ghost" href="my_registrations.php?show=past"><?= t('Cancel') ?></a>
+            <button type="submit" class="btn btn-primary"><?= $existing ? t('Update feedback') : t('Send feedback') ?></button>
         </div>
     </div>
 </form>

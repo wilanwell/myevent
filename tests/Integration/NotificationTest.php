@@ -129,4 +129,41 @@ final class NotificationTest extends DatabaseTestCase
 
         $this->assertSame(0, queue_event_reminders($this->db));
     }
+    public function testNotificationsAreWrittenInTheRecipientsLanguage(): void
+    {
+        $malay = $this->makeUser('Nur Aisyah', ['email' => 'aisyah@example.test', 'locale' => 'ms']);
+        $english = $this->makeUser('John Smith', ['email' => 'john@example.test', 'locale' => 'en']);
+        $event = $this->makeEvent($this->makeUser('Organiser'), ['event_name' => 'Hackathon', 'event_date' => '2030-03-04', 'event_time' => '09:00:00']);
+        $this->register($malay, $event, 'Approved');
+        $this->register($english, $event, 'Approved');
+
+        set_locale('en'); // the organiser cancelling uses English
+        notify_event_cancelled($this->db, $event);
+
+        $this->assertStringContainsString('telah dibatalkan oleh penganjur', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$malay]));
+        $this->assertStringContainsString('has been cancelled by the organiser', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$english]));
+
+        $byRecipient = array_column(MailSpy::messages(), null, 'to');
+        $ms = $byRecipient['aisyah@example.test'];
+        $this->assertSame('Dibatalkan: Hackathon', $ms['subject']);
+        $this->assertStringStartsWith('Hai Nur,', $ms['text']);
+        $this->assertStringContainsString('Bila: Isnin, 4 Mac 2030, 9:00 PG', $ms['text']);
+        $this->assertStringContainsString('<html lang="ms">', (string) $ms['html']);
+        $this->assertStringContainsString('Tukar tetapan e-mel', (string) $ms['html']);
+
+        $en = $byRecipient['john@example.test'];
+        $this->assertSame('Cancelled: Hackathon', $en['subject']);
+        $this->assertStringContainsString('When: Monday, 4 March 2030, 9:00 AM', $en['text']);
+        $this->assertSame('en', current_locale(), 'the language of the sender is restored');
+    }
+
+    public function testAccountsWithoutALanguageGetTheDefault(): void
+    {
+        $user = $this->makeUser('No Choice', ['locale' => null]);
+        set_locale('ms'); // whoever triggers it browses in Malay
+        notify_user($this->db, $user, fn() => __('Dashboard'));
+        set_locale('en');
+
+        $this->assertSame('Dashboard', db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$user]));
+    }
 }

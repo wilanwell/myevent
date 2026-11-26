@@ -26,6 +26,10 @@ echo "== Lint"
 "$PHP" tools/lint.php
 
 echo
+echo "== Translations"
+"$PHP" tools/i18n.php
+
+echo
 echo "== PHPUnit"
 "$PHP" vendor/bin/phpunit
 

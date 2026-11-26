@@ -58,7 +58,7 @@ $users = db_all($conn,
      LIMIT ? OFFSET ?", $types . 'ii', array_merge($params, [$p['per_page'], $p['offset']]));
 
 $me = current_user_id();
-$page_title = 'Users';
+$page_title = __('Users');
 $nav_active = 'admin_users';
 $nav_area   = 'admin';
 include ROOT_PATH . '/include/layout/app_start.php';
@@ -66,11 +66,11 @@ include ROOT_PATH . '/include/layout/app_start.php';
 
 <div class="page-header">
     <div>
-        <h1>Users</h1>
-        <p>Everyone with a <?= e(APP_NAME) ?> account. Change roles or remove accounts here.</p>
+        <h1><?= t('Users') ?></h1>
+        <p><?= t('Everyone with a {app} account. Change roles or remove accounts here.', ['app' => APP_NAME]) ?></p>
     </div>
     <div class="page-header-actions">
-        <a class="btn btn-secondary" href="<?= e(url_with(['export' => 'csv', 'page' => null])) ?>"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
+        <a class="btn btn-secondary" href="<?= e(url_with(['export' => 'csv', 'page' => null])) ?>"><i class="fa-solid fa-file-csv"></i> <?= t('Export CSV') ?></a>
     </div>
 </div>
 
@@ -78,26 +78,26 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <div class="card-header">
         <form class="toolbar" method="GET" role="search">
             <label class="search-box">
-                <span class="sr-only">Search users</span>
+                <span class="sr-only"><?= t('Search users') ?></span>
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Name, email or organisation">
+                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="<?= t('Name, email or organisation') ?>">
             </label>
-            <label class="sr-only" for="u-cat">Category</label>
+            <label class="sr-only" for="u-cat"><?= t('Category') ?></label>
             <select id="u-cat" class="input" name="category" data-autosubmit>
-                <option value="">All categories</option>
+                <option value=""><?= t('All categories') ?></option>
                 <?php foreach (['Student', 'Staff', 'Public'] as $c): ?>
-                    <option<?= $category === $c ? ' selected' : '' ?>><?= $c ?></option>
+                    <option value="<?= e($c) ?>"<?= $category === $c ? ' selected' : '' ?>><?= e(status_label($c)) ?></option>
                 <?php endforeach; ?>
             </select>
-            <label class="sr-only" for="u-role">Role</label>
+            <label class="sr-only" for="u-role"><?= t('Role') ?></label>
             <select id="u-role" class="input" name="role" data-autosubmit>
-                <option value="">All roles</option>
+                <option value=""><?= t('All roles') ?></option>
                 <?php foreach (['User', 'Admin'] as $r): ?>
-                    <option<?= $role === $r ? ' selected' : '' ?>><?= $r ?></option>
+                    <option value="<?= e($r) ?>"<?= $role === $r ? ' selected' : '' ?>><?= e(status_label($r)) ?></option>
                 <?php endforeach; ?>
             </select>
-            <button class="btn btn-secondary" type="submit">Apply</button>
-            <?php if ($q !== '' || $category !== '' || $role !== ''): ?><a class="btn btn-ghost" href="manage.php">Clear</a><?php endif; ?>
+            <button class="btn btn-secondary" type="submit"><?= t('Apply') ?></button>
+            <?php if ($q !== '' || $category !== '' || $role !== ''): ?><a class="btn btn-ghost" href="manage.php"><?= t('Clear') ?></a><?php endif; ?>
         </form>
     </div>
 
@@ -106,13 +106,13 @@ include ROOT_PATH . '/include/layout/app_start.php';
             <table class="table">
                 <thead>
                     <tr>
-                        <th scope="col">User</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Role</th>
-                        <th scope="col" class="num">Organised</th>
-                        <th scope="col" class="num">Joined</th>
-                        <th scope="col">Member since</th>
-                        <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                        <th scope="col"><?= t('User') ?></th>
+                        <th scope="col"><?= t('Category') ?></th>
+                        <th scope="col"><?= t('Role') ?></th>
+                        <th scope="col" class="num"><?= t('Organised') ?></th>
+                        <th scope="col" class="num"><?= t('Joined') ?></th>
+                        <th scope="col"><?= t('Member since') ?></th>
+                        <th scope="col" class="actions"><span class="sr-only"><?= t('Actions') ?></span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,23 +126,23 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                     <span class="avatar" aria-hidden="true"><?= e(initials($user['name'])) ?></span>
                                 <?php endif; ?>
                                 <div>
-                                    <div class="event-cell-title"><?= e($user['name']) ?><?= (int) $user['user_id'] === $me ? ' <span class="cell-muted">(you)</span>' : '' ?></div>
+                                    <div class="event-cell-title"><?= e($user['name']) ?><?= (int) $user['user_id'] === $me ? ' <span class="cell-muted">' . t('(you)') . '</span>' : '' ?></div>
                                     <div class="event-cell-meta"><?= e($user['email']) ?></div>
                                 </div>
                             </div>
                         </td>
-                        <td class="cell-muted"><?= e($user['category']) ?></td>
+                        <td class="cell-muted"><?= e(status_label($user['category'])) ?></td>
                         <td><?= status_badge($user['role']) ?></td>
                         <td class="num"><?= (int) $user['organised'] ?></td>
                         <td class="num"><?= (int) $user['joined'] ?></td>
-                        <td class="cell-muted"><?= e(date('j M Y', strtotime($user['created_at']))) ?></td>
+                        <td class="cell-muted"><?= e(ldate('j M Y', $user['created_at'])) ?></td>
                         <td class="actions">
-                            <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $user['user_id'] ?>" title="Edit user" aria-label="Edit <?= e($user['name']) ?>"><i class="fa-solid fa-pen"></i></a>
+                            <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $user['user_id'] ?>" title="<?= t('Edit user') ?>" aria-label="<?= t('Edit {name}', ['name' => $user['name']]) ?>"><i class="fa-solid fa-pen"></i></a>
                             <?php if ((int) $user['user_id'] !== $me): ?>
                                 <form action="delete.php" method="POST" data-confirm="Delete <?= e($user['name']) ?>? Their registrations will be removed and their events will have no organiser.">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $user['user_id'] ?>">
-                                    <button type="submit" class="btn btn-danger btn-icon" title="Delete user" aria-label="Delete <?= e($user['name']) ?>"><i class="fa-solid fa-trash-can"></i></button>
+                                    <button type="submit" class="btn btn-danger btn-icon" title="<?= t('Delete user') ?>" aria-label="<?= t('Delete {name}', ['name' => $user['name']]) ?>"><i class="fa-solid fa-trash-can"></i></button>
                                 </form>
                             <?php endif; ?>
                         </td>
@@ -155,8 +155,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <?php else: ?>
         <div class="empty-state">
             <i class="fa-solid fa-user-slash"></i>
-            <h3>No users match these filters</h3>
-            <a class="btn btn-secondary" href="manage.php">Clear filters</a>
+            <h3><?= t('No users match these filters') ?></h3>
+            <a class="btn btn-secondary" href="manage.php"><?= t('Clear filters') ?></a>
         </div>
     <?php endif; ?>
 </section>

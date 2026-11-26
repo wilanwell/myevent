@@ -43,7 +43,7 @@ $rows  = db_all($conn,
 
 $categories = db_all($conn, 'SELECT category_id, categoryName FROM event_category ORDER BY categoryName');
 
-$page_title = 'All events';
+$page_title = __('All events');
 $nav_active = 'admin_events';
 $nav_area   = 'admin';
 include ROOT_PATH . '/include/layout/app_start.php';
@@ -51,11 +51,11 @@ include ROOT_PATH . '/include/layout/app_start.php';
 
 <div class="page-header">
     <div>
-        <h1>All events</h1>
-        <p>Every event on <?= e(APP_NAME) ?>, whoever organises it.</p>
+        <h1><?= t('All events') ?></h1>
+        <p><?= t('Every event on {app}, whoever organises it.', ['app' => APP_NAME]) ?></p>
     </div>
     <div class="page-header-actions">
-        <a class="btn btn-primary" href="create.php"><i class="fa-solid fa-plus"></i> Create event</a>
+        <a class="btn btn-primary" href="create.php"><i class="fa-solid fa-plus"></i> <?= t('Create event') ?></a>
     </div>
 </div>
 
@@ -63,25 +63,25 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <div class="card-header">
         <form class="toolbar" method="GET" role="search">
             <label class="search-box">
-                <span class="sr-only">Search events</span>
+                <span class="sr-only"><?= t('Search events') ?></span>
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Event, venue or organiser">
+                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="<?= t('Event, venue or organiser') ?>">
             </label>
-            <label class="sr-only" for="ev-cat">Category</label>
+            <label class="sr-only" for="ev-cat"><?= t('Category') ?></label>
             <select id="ev-cat" class="input" name="category" data-autosubmit>
-                <option value="">All categories</option>
+                <option value=""><?= t('All categories') ?></option>
                 <?php foreach ($categories as $c): ?>
                     <option value="<?= (int) $c['category_id'] ?>"<?= $category === (int) $c['category_id'] ? ' selected' : '' ?>><?= e($c['categoryName']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <label class="sr-only" for="ev-when">Date</label>
+            <label class="sr-only" for="ev-when"><?= t('Date') ?></label>
             <select id="ev-when" class="input" name="when" data-autosubmit>
-                <option value="">Any date</option>
-                <option value="upcoming"<?= $when === 'upcoming' ? ' selected' : '' ?>>Upcoming</option>
-                <option value="past"<?= $when === 'past' ? ' selected' : '' ?>>Past</option>
+                <option value=""><?= t('Any date') ?></option>
+                <option value="upcoming"<?= $when === 'upcoming' ? ' selected' : '' ?>><?= t('Upcoming') ?></option>
+                <option value="past"<?= $when === 'past' ? ' selected' : '' ?>><?= t('Past') ?></option>
             </select>
-            <button class="btn btn-secondary" type="submit">Apply</button>
-            <?php if ($q !== '' || $category || $when !== ''): ?><a class="btn btn-ghost" href="manage.php">Clear</a><?php endif; ?>
+            <button class="btn btn-secondary" type="submit"><?= t('Apply') ?></button>
+            <?php if ($q !== '' || $category || $when !== ''): ?><a class="btn btn-ghost" href="manage.php"><?= t('Clear') ?></a><?php endif; ?>
         </form>
     </div>
 
@@ -90,12 +90,12 @@ include ROOT_PATH . '/include/layout/app_start.php';
             <table class="table">
                 <thead>
                     <tr>
-                        <th scope="col">Event</th>
-                        <th scope="col">Organiser</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Visibility</th>
-                        <th scope="col" class="num">Registered</th>
-                        <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                        <th scope="col"><?= t('Event') ?></th>
+                        <th scope="col"><?= t('Organiser') ?></th>
+                        <th scope="col"><?= t('Category') ?></th>
+                        <th scope="col"><?= t('Visibility') ?></th>
+                        <th scope="col" class="num"><?= t('Registered') ?></th>
+                        <th scope="col" class="actions"><span class="sr-only"><?= t('Actions') ?></span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -111,17 +111,17 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                 </div>
                             </div>
                         </td>
-                        <td class="cell-muted"><?= e($row['organiser'] ?? 'No organiser') ?></td>
-                        <td class="cell-muted"><?= e($row['categoryName'] ?? 'Uncategorised') ?></td>
+                        <td class="cell-muted"><?= e($row['organiser'] ?? __('No organiser')) ?></td>
+                        <td class="cell-muted"><?= e($row['categoryName'] ?? __('Uncategorised')) ?></td>
                         <td><?= status_badge($row['visibility']) ?></td>
                         <td class="num"><?= (int) $row['taken'] ?> / <?= (int) $row['max_participants'] > 0 ? (int) $row['max_participants'] : '&infin;' ?></td>
                         <td class="actions">
-                            <a class="btn btn-secondary btn-sm" href="../organizer/manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-solid fa-users"></i> Participants</a>
-                            <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $row['event_id'] ?>" title="Edit event" aria-label="Edit <?= e($row['event_name']) ?>"><i class="fa-solid fa-pen"></i></a>
-                            <form action="delete.php" method="POST" data-confirm="Delete this event and all of its registrations?">
+                            <a class="btn btn-secondary btn-sm" href="../organizer/manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-solid fa-users"></i> <?= t('Participants') ?></a>
+                            <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $row['event_id'] ?>" title="<?= t('Edit event') ?>" aria-label="<?= t('Edit {name}', ['name' => $row['event_name']]) ?>"><i class="fa-solid fa-pen"></i></a>
+                            <form action="delete.php" method="POST" data-confirm="<?= t('Delete this event and all of its registrations?') ?>">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= (int) $row['event_id'] ?>">
-                                <button type="submit" class="btn btn-danger btn-icon" title="Delete event" aria-label="Delete <?= e($row['event_name']) ?>"><i class="fa-solid fa-trash-can"></i></button>
+                                <button type="submit" class="btn btn-danger btn-icon" title="<?= t('Delete event') ?>" aria-label="<?= t('Delete {name}', ['name' => $row['event_name']]) ?>"><i class="fa-solid fa-trash-can"></i></button>
                             </form>
                         </td>
                     </tr>
@@ -133,8 +133,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <?php else: ?>
         <div class="empty-state">
             <i class="fa-regular fa-calendar-xmark"></i>
-            <h3><?= $total === 0 && $q === '' && !$category && $when === '' ? 'No events yet' : 'No events match these filters' ?></h3>
-            <a class="btn btn-secondary" href="manage.php">Clear filters</a>
+            <h3><?= $total === 0 && $q === '' && !$category && $when === '' ? t('No events yet') : t('No events match these filters') ?></h3>
+            <a class="btn btn-secondary" href="manage.php"><?= t('Clear filters') ?></a>
         </div>
     <?php endif; ?>
 </section>

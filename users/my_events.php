@@ -21,9 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_event'])) {
         $stmt->close();
         delete_upload($owned['poster_path'], POSTER_DIR);
         audit($conn, 'event.delete', 'event', $target_id, $owned['event_name']);
-        flash('success', 'Event deleted.' . ($told ? " We let {$told} registered " . ($told === 1 ? 'person' : 'people') . ' know it is cancelled.' : ''));
+        flash('success', __('Event deleted.') . ($told ? ' ' . _n('We let {n} registered person know it is cancelled.', 'We let {n} registered people know it is cancelled.', $told) : ''));
     } else {
-        flash('error', 'You can only delete events you organise.');
+        flash('error', __('You can only delete events you organise.'));
     }
     redirect('users/my_events.php');
 }
@@ -53,18 +53,18 @@ $rows = db_all($conn,
      ORDER BY e.event_date DESC
      LIMIT ? OFFSET ?", $types . 'ii', array_merge($params, [$p['per_page'], $p['offset']]));
 
-$page_title = 'My events';
+$page_title = __('My events');
 $nav_active = 'my_events';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
 <div class="page-header">
     <div>
-        <h1>My events</h1>
-        <p>Events you organise. Review registrations, edit details or remove an event.</p>
+        <h1><?= t('My events') ?></h1>
+        <p><?= t('Events you organise. Review registrations, edit details or remove an event.') ?></p>
     </div>
     <div class="page-header-actions">
-        <a class="btn btn-primary" href="create_event.php"><i class="fa-solid fa-plus"></i> Create event</a>
+        <a class="btn btn-primary" href="create_event.php"><i class="fa-solid fa-plus"></i> <?= t('Create event') ?></a>
     </div>
 </div>
 
@@ -72,12 +72,12 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <div class="card-header">
         <form class="toolbar" method="GET" role="search">
             <label class="search-box">
-                <span class="sr-only">Search your events</span>
+                <span class="sr-only"><?= t('Search your events') ?></span>
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Search by name or venue">
+                <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="<?= t('Search by name or venue') ?>">
             </label>
-            <button class="btn btn-secondary" type="submit">Search</button>
-            <?php if ($q !== ''): ?><a class="btn btn-ghost" href="my_events.php">Clear</a><?php endif; ?>
+            <button class="btn btn-secondary" type="submit"><?= t('Search') ?></button>
+            <?php if ($q !== ''): ?><a class="btn btn-ghost" href="my_events.php"><?= t('Clear') ?></a><?php endif; ?>
         </form>
     </div>
 
@@ -86,11 +86,11 @@ include ROOT_PATH . '/include/layout/app_start.php';
             <table class="table">
                 <thead>
                     <tr>
-                        <th scope="col">Event</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Visibility</th>
-                        <th scope="col" class="num">Registered</th>
-                        <th scope="col" class="actions"><span class="sr-only">Actions</span></th>
+                        <th scope="col"><?= t('Event') ?></th>
+                        <th scope="col"><?= t('Category') ?></th>
+                        <th scope="col"><?= t('Visibility') ?></th>
+                        <th scope="col" class="num"><?= t('Registered') ?></th>
+                        <th scope="col" class="actions"><span class="sr-only"><?= t('Actions') ?></span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,19 +106,19 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                 </div>
                             </div>
                         </td>
-                        <td class="cell-muted"><?= e($row['categoryName'] ?? 'Uncategorised') ?></td>
+                        <td class="cell-muted"><?= e($row['categoryName'] ?? __('Uncategorised')) ?></td>
                         <td><?= status_badge($row['visibility']) ?></td>
                         <td class="num">
                             <?= (int) $row['taken'] ?> / <?= (int) $row['max_participants'] > 0 ? (int) $row['max_participants'] : '&infin;' ?>
-                            <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning cell-sub"><?= (int) $row['pending'] ?> to review</span><?php endif; ?>
+                            <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning cell-sub"><?= t('{n} to review', ['n' => (int) $row['pending']]) ?></span><?php endif; ?>
                         </td>
                         <td class="actions">
-                            <a class="btn btn-secondary btn-sm" href="manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-solid fa-users"></i> Participants</a>
-                            <a class="btn btn-ghost btn-icon" href="edit_event.php?id=<?= (int) $row['event_id'] ?>" title="Edit event" aria-label="Edit <?= e($row['event_name']) ?>"><i class="fa-solid fa-pen"></i></a>
-                            <form method="POST" data-confirm="Delete this event? All of its registrations will be removed too.">
+                            <a class="btn btn-secondary btn-sm" href="manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-solid fa-users"></i> <?= t('Participants') ?></a>
+                            <a class="btn btn-ghost btn-icon" href="edit_event.php?id=<?= (int) $row['event_id'] ?>" title="<?= t('Edit event') ?>" aria-label="<?= t('Edit {name}', ['name' => $row['event_name']]) ?>"><i class="fa-solid fa-pen"></i></a>
+                            <form method="POST" data-confirm="<?= t('Delete this event? All of its registrations will be removed too.') ?>">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="event_id" value="<?= (int) $row['event_id'] ?>">
-                                <button type="submit" name="delete_event" value="1" class="btn btn-danger btn-icon" title="Delete event" aria-label="Delete <?= e($row['event_name']) ?>"><i class="fa-solid fa-trash-can"></i></button>
+                                <button type="submit" name="delete_event" value="1" class="btn btn-danger btn-icon" title="<?= t('Delete event') ?>" aria-label="<?= t('Delete {name}', ['name' => $row['event_name']]) ?>"><i class="fa-solid fa-trash-can"></i></button>
                             </form>
                         </td>
                     </tr>
@@ -131,15 +131,15 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <div class="empty-state">
             <i class="fa-solid fa-magnifying-glass"></i>
             <h3>No events match "<?= e($q) ?>"</h3>
-            <p>Try a different name or venue.</p>
-            <a class="btn btn-secondary" href="my_events.php">Clear search</a>
+            <p><?= t('Try a different name or venue.') ?></p>
+            <a class="btn btn-secondary" href="my_events.php"><?= t('Clear search') ?></a>
         </div>
     <?php else: ?>
         <div class="empty-state">
             <i class="fa-solid fa-bullhorn"></i>
-            <h3>You have not created any events</h3>
-            <p>Publish your first event and start taking registrations.</p>
-            <a class="btn btn-primary" href="create_event.php">Create event</a>
+            <h3><?= t('You have not created any events') ?></h3>
+            <p><?= t('Publish your first event and start taking registrations.') ?></p>
+            <a class="btn btn-primary" href="create_event.php"><?= t('Create event') ?></a>
         </div>
     <?php endif; ?>
 </section>

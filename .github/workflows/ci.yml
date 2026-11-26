@@ -58,6 +58,9 @@ jobs:
       - name: Lint PHP files
         run: php tools/lint.php
 
+      - name: Every interface string has a Malay translation
+        run: php tools/i18n.php
+
       - name: Unit and integration tests
         run: vendor/bin/phpunit
 

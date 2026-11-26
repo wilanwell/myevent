@@ -77,6 +77,7 @@ APP_NAME=MyEvent
 APP_URL=https://events.example.edu.my      # exact public address, no trailing slash
 APP_DEBUG=false
 APP_TIMEZONE=Asia/Kuala_Lumpur
+APP_LOCALE=en                               # or ms: language for visitors whose browser asks for neither
 APP_KEY=<php -r "echo bin2hex(random_bytes(32));">
 
 DB_HOST=localhost

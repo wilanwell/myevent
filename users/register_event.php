@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config.php';
 
 require_post();
 if (!is_logged_in()) {
-    flash('info', 'Please log in to register for this event.');
+    flash('info', __('Please log in to register for this event.'));
     redirect('auth/login.php');
 }
 
@@ -27,7 +27,7 @@ if ($action === 'leave_waitlist') {
     $stmt->execute();
     $left = $stmt->affected_rows > 0;
     $stmt->close();
-    flash($left ? 'success' : 'info', $left ? 'You have left the waitlist.' : 'You were not on the waitlist for this event.');
+    flash($left ? 'success' : 'info', $left ? __('You have left the waitlist.') : __('You were not on the waitlist for this event.'));
     redirect(($_POST['return'] ?? '') === 'registrations' ? 'users/my_registrations.php' : $back);
 }
 
@@ -36,21 +36,23 @@ try {
     $event = event_availability($conn, $event_id, true);
 
     $error = null;
+    $already = false;
     if (!$event) {
-        $error = 'Event not found.';
+        $error = __('Event not found.');
     } elseif ((int) $event['created_by'] === $user_id) {
-        $error = 'You cannot register for an event you organise.';
+        $error = __('You cannot register for an event you organise.');
     } elseif (!$event['open']) {
-        $error = 'Registration for this event has closed.';
+        $error = __('Registration for this event has closed.');
     } elseif ($status = db_value($conn, 'SELECT approval_status FROM registrations WHERE event_id = ? AND user_id = ?', 'ii', [$event_id, $user_id])) {
-        $error = $status === 'Rejected'
-            ? 'The organiser did not approve your registration for this event.'
-            : 'You are already registered for this event.';
+        $already = $status !== 'Rejected';
+        $error = $already
+            ? __('You are already registered for this event.')
+            : __('The organiser did not approve your registration for this event.');
     }
 
     if ($error) {
         $conn->rollback();
-        flash($error === 'You are already registered for this event.' ? 'info' : 'error', $error);
+        flash($already ? 'info' : 'error', $error);
         redirect($event ? $back : 'index.php');
     }
 
@@ -67,8 +69,10 @@ try {
             $conn->commit();
 
             $pos = waitlist_position($conn, $event_id, $user_id);
-            flash('success', ($action === 'join_waitlist' ? 'You joined the waitlist' : 'The last place has just gone, so you joined the waitlist')
-                . ". You are number {$pos} in line. We will register you automatically if a place opens up.");
+            flash('success', ($action === 'join_waitlist'
+                    ? __('You joined the waitlist. You are number {n} in line.', ['n' => $pos])
+                    : __('The last place has just gone, so you joined the waitlist. You are number {n} in line.', ['n' => $pos]))
+                . ' ' . __('We will register you automatically if a place opens up.'));
             redirect($back);
         }
     }
@@ -85,14 +89,18 @@ try {
     $stmt->close();
 
     if (!empty($event['created_by'])) {
-        $student = $_SESSION['name'] ?? 'A participant';
-        notify_user($conn, (int) $event['created_by'], "📩 <strong>{$student}</strong> has registered for: <strong>{$event['event_name']}</strong>.", 'organiser', [
-            'subject' => "New registration: {$event['event_name']}",
-            'heading' => 'Someone registered for your event',
-            'intro'   => "{$student} registered for {$event['event_name']} and is waiting for your approval."
-                       . ($event['capacity'] > 0 ? ' ' . ($event['taken'] + 1) . " of {$event['capacity']} places are now taken." : ''),
-            'button'  => ['Review participants', BASE_URL . 'users/manage_participants.php?event_id=' . $event_id],
-        ]);
+        $student = $_SESSION['name'] ?? '';
+        $name = $event['event_name'];
+        notify_user($conn, (int) $event['created_by'],
+            fn() => '📩 ' . __('{name} has registered for: {event}.', ['name' => '<strong>' . ($student ?: __('A participant')) . '</strong>', 'event' => "<strong>{$name}</strong>"]),
+            'organiser',
+            fn() => [
+                'subject' => __('New registration: {event}', ['event' => $name]),
+                'heading' => __('Someone registered for your event'),
+                'intro'   => __('{name} registered for {event} and is waiting for your approval.', ['name' => $student ?: __('A participant'), 'event' => $name])
+                           . ($event['capacity'] > 0 ? ' ' . __('{taken} of {capacity} places are now taken.', ['taken' => $event['taken'] + 1, 'capacity' => $event['capacity']]) : ''),
+                'button'  => [__('Review participants'), BASE_URL . 'users/manage_participants.php?event_id=' . $event_id],
+            ]);
     }
     $conn->commit();
 } catch (Throwable $ex) {
@@ -100,5 +108,5 @@ try {
     throw $ex;
 }
 
-flash('success', 'Registration submitted! You will be notified once the organiser reviews it.');
+flash('success', __('Registration submitted! You will be notified once the organiser reviews it.'));
 redirect('users/my_registrations.php');

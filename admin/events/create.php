@@ -9,7 +9,7 @@ require_admin();
 $editor_event    = null;
 $editor_redirect = 'admin/events/manage.php';
 $editor_cancel   = 'manage.php';
-$page_title      = 'Create event';
+$page_title      = __('Create event');
 $nav_active      = 'admin_create';
 $nav_area        = 'admin';
 include ROOT_PATH . '/include/event_editor.php';

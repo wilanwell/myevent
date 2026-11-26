@@ -9,17 +9,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     if (!is_logged_in()) {
         redirect('index.php');
     }
-    $page_title = 'Log out';
+    $page_title = __('Log out');
     include ROOT_PATH . '/include/layout/public_start.php';
     ?>
     <section class="section" style="max-width:520px">
         <div class="public-card card-body">
-            <h1 class="page-title">Log out?</h1>
-            <p class="cell-muted">You will need to log in again to see your registrations.</p>
+            <h1 class="page-title"><?= t('Log out?') ?></h1>
+            <p class="cell-muted"><?= t('You will need to log in again to see your registrations.') ?></p>
             <form method="POST" class="form-actions">
                 <?= csrf_field() ?>
-                <a class="btn btn-ghost" href="<?= e(BASE_URL) ?>users/dashboard.php">Stay logged in</a>
-                <button type="submit" class="btn btn-primary">Log out</button>
+                <a class="btn btn-ghost" href="<?= e(BASE_URL) ?>users/dashboard.php"><?= t('Stay logged in') ?></a>
+                <button type="submit" class="btn btn-primary"><?= t('Log out') ?></button>
             </form>
         </div>
     </section>

@@ -37,7 +37,7 @@ function avatar_url(?string $file): ?string
 function format_fee($fee): string
 {
     $amount = (float) $fee;
-    return $amount > 0 ? 'RM ' . number_format($amount, 2) : 'Free';
+    return $amount > 0 ? 'RM ' . number_format($amount, 2) : __('Free');
 }
 
 /** Parse a fee typed by a user ("Free", "RM10", "10.50") into a non-negative number. */
@@ -68,14 +68,14 @@ function valid_time(?string $time): bool
 function datestub(?string $date): string
 {
     if (!$date || !($ts = strtotime($date))) {
-        return '<span class="datestub is-past" aria-label="No date"><b>–</b><span>TBA</span></span>';
+        return '<span class="datestub is-past" aria-label="' . e(__('No date')) . '"><b>–</b><span>' . e(__('TBA')) . '</span></span>';
     }
     $past = date('Y-m-d', $ts) < date('Y-m-d') ? ' is-past' : '';
-    return '<span class="datestub' . $past . '" aria-label="' . e(date('j F Y', $ts)) . '"><b>'
-        . date('j', $ts) . '</b><span>' . date('M', $ts) . '</span></span>';
+    return '<span class="datestub' . $past . '" aria-label="' . e(ldate('j F Y', $ts)) . '"><b>'
+        . date('j', $ts) . '</b><span>' . e(ldate('M', $ts)) . '</span></span>';
 }
 
-/** Coloured status pill for approval, attendance, visibility and roles. */
+/** Coloured status pill for approval, attendance, visibility and roles (the label is translated). */
 function status_badge(?string $status): string
 {
     $map = [
@@ -86,7 +86,22 @@ function status_badge(?string $status): string
         'Admin'    => 'badge-brand', 'User' => '',
     ];
     $status = $status ?: 'Unknown';
-    return '<span class="badge ' . ($map[$status] ?? '') . '">' . e($status) . '</span>';
+    return '<span class="badge ' . ($map[$status] ?? '') . '">' . e(status_label($status)) . '</span>';
+}
+
+/** Display name of a stored status, role, mode or category value. */
+function status_label(string $value): string
+{
+    $labels = [
+        'Approved' => __('Approved'), 'Pending' => __('Pending'), 'Rejected' => __('Rejected'),
+        'Present' => __('Present'), 'Absent' => __('Absent'),
+        'Public' => __('Public'), 'Private' => __('Private'),
+        'Admin' => __('Admin'), 'User' => __('User'),
+        'Student' => __('Student'), 'Staff' => __('Staff'),
+        'Physical' => __('Physical'), 'Online' => __('Online'), 'Hybrid' => __('Hybrid'),
+        'Unknown' => __('Unknown'),
+    ];
+    return $labels[$value] ?? $value;
 }
 
 /** Initials for an avatar placeholder. */
@@ -124,20 +139,32 @@ function url_with(array $changes): string
     return $path . ($query ? '?' . http_build_query($query) : '');
 }
 
-/** Pagination bar ("Showing 11–20 of 42" + page links). */
+/**
+ * Pagination bar ("Showing 11–20 of 42 events" + page links).
+ * $noun is one of: results, events, entries, users, participants, registrations, notifications.
+ */
 function render_pagination(array $p, string $noun = 'results', string $param = 'page'): string
 {
     if ($p['total'] === 0) {
         return '';
     }
+    $nouns = [
+        'results' => __('Showing {from}–{to} of {total} results'),
+        'events' => __('Showing {from}–{to} of {total} events'),
+        'entries' => __('Showing {from}–{to} of {total} entries'),
+        'users' => __('Showing {from}–{to} of {total} users'),
+        'participants' => __('Showing {from}–{to} of {total} participants'),
+        'registrations' => __('Showing {from}–{to} of {total} registrations'),
+        'notifications' => __('Showing {from}–{to} of {total} notifications'),
+    ];
     $from = $p['offset'] + 1;
     $to   = min($p['total'], $p['offset'] + $p['per_page']);
-    $html = '<nav class="pagination" aria-label="Pagination"><span>Showing ' . $from . '–' . $to
-          . ' of ' . $p['total'] . ' ' . e($noun) . '</span>';
+    $html = '<nav class="pagination" aria-label="' . e(__('Pagination')) . '"><span>'
+          . e(strtr($nouns[$noun] ?? $nouns['results'], ['{from}' => $from, '{to}' => $to, '{total}' => $p['total']])) . '</span>';
     if ($p['pages'] > 1) {
         $html .= '<div class="pagination-links">';
         $prev = $p['page'] - 1;
-        $html .= '<a class="page-link' . ($prev < 1 ? ' is-disabled' : '') . '" href="' . e(url_with([$param => $prev])) . '" aria-label="Previous page"><i class="fa-solid fa-chevron-left"></i></a>';
+        $html .= '<a class="page-link' . ($prev < 1 ? ' is-disabled' : '') . '" href="' . e(url_with([$param => $prev])) . '" aria-label="' . e(__('Previous page')) . '"><i class="fa-solid fa-chevron-left"></i></a>';
         $start = max(1, $p['page'] - 2);
         $end   = min($p['pages'], $start + 4);
         $start = max(1, $end - 4);
@@ -147,7 +174,7 @@ function render_pagination(array $p, string $noun = 'results', string $param = '
                    . ($current ? ' aria-current="page"' : '') . '>' . $i . '</a>';
         }
         $next = $p['page'] + 1;
-        $html .= '<a class="page-link' . ($next > $p['pages'] ? ' is-disabled' : '') . '" href="' . e(url_with([$param => $next])) . '" aria-label="Next page"><i class="fa-solid fa-chevron-right"></i></a>';
+        $html .= '<a class="page-link' . ($next > $p['pages'] ? ' is-disabled' : '') . '" href="' . e(url_with([$param => $next])) . '" aria-label="' . e(__('Next page')) . '"><i class="fa-solid fa-chevron-right"></i></a>';
         $html .= '</div>';
     }
     return $html . '</nav>';
@@ -254,7 +281,7 @@ function ticket_checkin_url(string $code): string
 function rating_stars(float $value): string
 {
     $half = round($value * 2) / 2;
-    $html = '<span class="stars" role="img" aria-label="' . e(number_format($value, 1)) . ' out of 5 stars">';
+    $html = '<span class="stars" role="img" aria-label="' . e(__('{n} out of 5 stars', ['n' => number_format($value, 1)])) . '">';
     for ($i = 1; $i <= 5; $i++) {
         if ($half >= $i) {
             $html .= '<i class="fa-solid fa-star" aria-hidden="true"></i>';

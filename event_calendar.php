@@ -11,7 +11,7 @@ $event = db_all($conn,
 
 if (!$event) {
     http_response_code(404);
-    render_error_page('Event not found', 'This event does not exist or has been removed.');
+    render_error_page(__('Event not found'), __('This event does not exist or has been removed.'));
 }
 
 header('Content-Type: text/calendar; charset=utf-8');

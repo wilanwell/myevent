@@ -10,7 +10,7 @@ require_post();
 $id = (int) ($_POST['id'] ?? 0);
 
 if ($id === current_user_id()) {
-    flash('error', 'You cannot delete your own account.');
+    flash('error', __('You cannot delete your own account.'));
     redirect('admin/users/manage.php');
 }
 
@@ -21,7 +21,7 @@ $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$user) {
-    flash('error', 'User not found.');
+    flash('error', __('User not found.'));
     redirect('admin/users/manage.php');
 }
 
@@ -39,5 +39,5 @@ foreach ($affectedEvents as $eventId) {
 }
 audit($conn, 'user.delete', 'user', $id, $user['name'] . ' <' . $user['email'] . '>');
 
-flash('success', 'User deleted.');
+flash('success', __('User deleted.'));
 redirect('admin/users/manage.php');

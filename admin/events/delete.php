@@ -17,7 +17,7 @@ $event = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$event) {
-    flash('error', 'Event not found.');
+    flash('error', __('Event not found.'));
     redirect('admin/events/manage.php');
 }
 
@@ -44,5 +44,5 @@ try {
 delete_upload($event['poster_path'], POSTER_DIR);
 audit($conn, 'event.delete', 'event', $event_id, $event['event_name']);
 
-flash('success', 'Event and all associated registrations deleted.' . ($told ? " {$told} registered " . ($told === 1 ? 'person was' : 'people were') . ' told it is cancelled.' : ''));
+flash('success', __('Event and all associated registrations deleted.') . ($told ? ' ' . _n('{n} registered person was told it is cancelled.', '{n} registered people were told it is cancelled.', $told) : ''));
 redirect('admin/events/manage.php');

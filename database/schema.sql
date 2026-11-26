@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `profile_pic` varchar(255) DEFAULT NULL,
   `email_participant` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Emails about my own registrations and events I joined',
   `email_organiser` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Emails when people register for events I organise',
+  `locale` varchar(5) DEFAULT NULL COMMENT 'Interface and email language: en or ms (NULL = not chosen yet)',
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

@@ -17,9 +17,10 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 $rp_events_url = 'organizer/manage_participants.php?event_id=';
-$rp_intro      = 'Registrations, attendance and ratings across ' . ($rf['organiser'] ? 'one organiser\'s events' : 'every event') . '.';
+$rp_intro      = $rf['organiser'] ? __('Registrations, attendance and ratings across one organiser\'s events.')
+                                  : __('Registrations, attendance and ratings across every event.');
 
-$page_title = 'Reports';
+$page_title = __('Reports');
 $nav_active = 'admin_reports';
 $nav_area   = 'admin';
 include ROOT_PATH . '/include/layout/app_start.php';

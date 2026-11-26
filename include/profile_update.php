@@ -20,7 +20,7 @@ function handle_profile_update(mysqli $conn, string $backPath): void
     $stmt->close();
 
     if (!$current) {
-        force_logout('Your account could not be found. Please log in again.');
+        force_logout(__('Your account could not be found. Please log in again.'));
     }
 
     $allowedInterests = ['workshop', 'seminar', 'competition', 'festival', 'sport', 'course'];
@@ -35,19 +35,19 @@ function handle_profile_update(mysqli $conn, string $backPath): void
 
     $errors = [];
     if ($name === '' || mb_strlen($name) > 255) {
-        $errors[] = 'Name is required.';
+        $errors[] = __('Name is required.');
     }
     if (!preg_match('/^[0-9+\- ]{7,20}$/', $phone)) {
-        $errors[] = 'Please enter a valid phone number.';
+        $errors[] = __('Please enter a valid phone number.');
     }
     if (mb_strlen($bio) > 1000) {
-        $errors[] = 'Bio must be 1000 characters or fewer.';
+        $errors[] = __('Bio must be 1000 characters or fewer.');
     }
     if ($newPassword !== '') {
         if (!password_verify($currentPwd, $current['password'])) {
-            $errors[] = 'Your current password is incorrect.';
+            $errors[] = __('Your current password is incorrect.');
         } elseif (strlen($newPassword) < 8 || !preg_match('/[A-Za-z]/', $newPassword) || !preg_match('/\d/', $newPassword)) {
-            $errors[] = 'New password must be at least 8 characters and include a letter and a number.';
+            $errors[] = __('New password must be at least 8 characters and include a letter and a number.');
         }
     }
 
@@ -102,6 +102,6 @@ function handle_profile_update(mysqli $conn, string $backPath): void
     }
     $_SESSION['name'] = $name;
 
-    flash('success', 'Profile updated successfully!');
+    flash('success', __('Profile updated successfully!'));
     redirect($backPath);
 }

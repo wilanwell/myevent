@@ -11,21 +11,21 @@ $email    = trim((string) ($_POST['email'] ?? ''));
 $password = (string) ($_POST['password'] ?? '');
 
 // Generic message: never reveal whether the email exists.
-$invalid = 'Invalid email or password.';
+$invalid = __('Invalid email or password.');
 
 if ($email === '' || $password === '') {
-    flash('error', 'Please enter both email and password.');
+    flash('error', __('Please enter both email and password.'));
     redirect('auth/login.php');
 }
 
 $_SESSION['old_email'] = $email;
 
 if (login_is_throttled($conn, $email)) {
-    flash('error', 'Too many failed login attempts. Please wait ' . LOGIN_WINDOW_MINUTES . ' minutes and try again.');
+    flash('error', __('Too many failed login attempts. Please wait {n} minutes and try again.', ['n' => LOGIN_WINDOW_MINUTES]));
     redirect('auth/login.php');
 }
 
-$stmt = $conn->prepare('SELECT user_id, name, password, role FROM users WHERE email = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT user_id, name, password, role, locale FROM users WHERE email = ? LIMIT 1');
 $stmt->bind_param('s', $email);
 $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
@@ -58,6 +58,14 @@ $_SESSION = [
     'name'          => $user['name'],
     'role'          => trim($user['role']),
     'last_activity' => time(),
+    // The account's language wins; an account without one adopts the language in use now.
+    'locale'        => isset(LOCALES[$user['locale'] ?? '']) ? $user['locale'] : current_locale(),
 ];
+if (($user['locale'] ?? null) !== $_SESSION['locale']) {
+    $up = $conn->prepare('UPDATE users SET locale = ? WHERE user_id = ?');
+    $up->bind_param('si', $_SESSION['locale'], $_SESSION['user_id']);
+    $up->execute();
+    $up->close();
+}
 
 redirect($_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'index.php');

@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_all'])) {
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $stmt->close();
-    flash('success', 'All notifications cleared.');
+    flash('success', __('All notifications cleared.'));
     redirect('users/notifications.php');
 }
 
@@ -30,20 +30,20 @@ $mark->bind_param('i', $user_id);
 $mark->execute();
 $mark->close();
 
-$page_title = 'Notifications';
+$page_title = __('Notifications');
 $nav_active = 'notifications';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 
 <div class="page-header card-narrow">
     <div>
-        <h1>Notifications</h1>
-        <p>Updates about your registrations and the events you organise.</p>
+        <h1><?= t('Notifications') ?></h1>
+        <p><?= t('Updates about your registrations and the events you organise.') ?></p>
     </div>
     <?php if ($total > 0): ?>
-        <form method="POST" data-confirm="Delete all notifications? This cannot be undone.">
+        <form method="POST" data-confirm="<?= t('Delete all notifications? This cannot be undone.') ?>">
             <?= csrf_field() ?>
-            <button type="submit" name="clear_all" value="1" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> Clear all</button>
+            <button type="submit" name="clear_all" value="1" class="btn btn-danger"><i class="fa-solid fa-trash-can"></i> <?= t('Clear all') ?></button>
         </form>
     <?php endif; ?>
 </div>
@@ -58,7 +58,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <div><?= render_message($row['message']) ?></div>
                         <div class="notice-time">
                             <time datetime="<?= e(date('c', strtotime($row['created_at']))) ?>"><?= e(date('j M Y, g:i A', strtotime($row['created_at']))) ?></time>
-                            <?php if ((int) $row['is_read'] === 0): ?><span class="badge badge-brand">New</span><?php endif; ?>
+                            <?php if ((int) $row['is_read'] === 0): ?><span class="badge badge-brand"><?= t('New') ?></span><?php endif; ?>
                         </div>
                     </div>
                 </li>
@@ -68,8 +68,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <?php else: ?>
         <div class="empty-state">
             <i class="fa-regular fa-bell-slash"></i>
-            <h3>You are all caught up</h3>
-            <p>We will let you know when an organiser reviews your registration or someone joins your event.</p>
+            <h3><?= t('You are all caught up') ?></h3>
+            <p><?= t('We will let you know when an organiser reviews your registration or someone joins your event.') ?></p>
         </div>
     <?php endif; ?>
 </section>

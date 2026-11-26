@@ -53,3 +53,6 @@ $GLOBALS['conn'] = $conn;
 
 // Leave no test emails behind in the temp folder.
 register_shutdown_function([MyEvent\Tests\Support\MailSpy::class, 'clear']);
+
+// Expected errors raised by tests (failed SMTP sends etc.) go to a temp file, not storage/logs.
+ini_set('error_log', sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'myevent-test-php-error.log');

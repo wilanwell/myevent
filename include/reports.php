@@ -13,12 +13,19 @@
  *   fill rate       registrations / capacity, for events with a capacity
  */
 
+/** Period presets: key => [how far back]. Labels come from report_preset_labels(). */
 const REPORT_PRESETS = [
-    '30d' => ['Last 30 days', '-30 days'],
-    '90d' => ['Last 90 days', '-90 days'],
-    '12m' => ['Last 12 months', '-12 months'],
-    'all' => ['All time', null],
+    '30d' => '-30 days',
+    '90d' => '-90 days',
+    '12m' => '-12 months',
+    'all' => null,
 ];
+
+/** Translated labels for the period picker. */
+function report_preset_labels(): array
+{
+    return ['30d' => __('Last 30 days'), '90d' => __('Last 90 days'), '12m' => __('Last 12 months'), 'all' => __('All time')];
+}
 
 /**
  * Read the date filter from the query string.
@@ -38,8 +45,8 @@ function report_filter(array $query, ?int $organiser = null): array
         if (!$from && !$to) {
             $preset = 'all';
         }
-    } elseif (isset(REPORT_PRESETS[$preset])) {
-        $offset = REPORT_PRESETS[$preset][1];
+    } elseif (array_key_exists($preset, REPORT_PRESETS)) {
+        $offset = REPORT_PRESETS[$preset];
         $from = $offset ? date('Y-m-d', strtotime($offset)) : null;
     } else {
         $preset = '12m';
@@ -48,14 +55,14 @@ function report_filter(array $query, ?int $organiser = null): array
 
     if ($preset === 'custom') {
         $label = match (true) {
-            $from && $to => 'Events from ' . date('j M Y', strtotime($from)) . ' to ' . date('j M Y', strtotime($to)),
-            (bool) $from => 'Events from ' . date('j M Y', strtotime($from)),
-            default      => 'Events up to ' . date('j M Y', strtotime($to)),
+            $from && $to => __('Events from {from} to {to}', ['from' => ldate('j M Y', $from), 'to' => ldate('j M Y', $to)]),
+            (bool) $from => __('Events from {from}', ['from' => ldate('j M Y', $from)]),
+            default      => __('Events up to {to}', ['to' => ldate('j M Y', $to)]),
         };
     } elseif ($from) {
-        $label = 'Events since ' . date('j M Y', strtotime($from)) . ', including upcoming ones';
+        $label = __('Events since {from}, including upcoming ones', ['from' => ldate('j M Y', $from)]);
     } else {
-        $label = 'All events';
+        $label = __('All events');
     }
 
     return ['preset' => $preset, 'from' => $from, 'to' => $to, 'organiser' => $organiser, 'label' => $label];
@@ -164,7 +171,7 @@ function report_registrations_by_month(mysqli $conn, array $f, int $maxMonths = 
     $out = [];
     for ($m = $first; $m <= $last; $m = $m->modify('+1 month')) {
         $key = $m->format('Y-m');
-        $out[] = ['month' => $key, 'label' => $m->format('M Y'), 'count' => (int) ($counts[$key] ?? 0)];
+        $out[] = ['month' => $key, 'label' => ldate('M Y', $m->getTimestamp()), 'count' => (int) ($counts[$key] ?? 0)];
     }
     return $out;
 }
@@ -173,7 +180,7 @@ function report_registrations_by_month(mysqli $conn, array $f, int $maxMonths = 
 function report_by_category(mysqli $conn, array $f): array
 {
     [$where, $types, $params] = report_where($f);
-    return array_map(static fn($r) => ['label' => $r['category'], 'count' => (int) $r['count']], db_all($conn,
+    return array_map(static fn($r) => ['label' => status_label($r['category']), 'count' => (int) $r['count']], db_all($conn,
         "SELECT u.category, COUNT(*) AS count
          FROM registrations r JOIN events e ON e.event_id = r.event_id JOIN users u ON u.user_id = r.user_id
          WHERE $where AND r.approval_status <> 'Rejected'
@@ -254,11 +261,11 @@ function report_export_csv(array $events, array $f, string $name): void
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel shows names correctly
     fputcsv($out, csv_row([$f['label']]));
-    fputcsv($out, ['Event', 'Date', 'Organiser', 'Capacity', 'Registrations', 'Approved', 'Attended',
-                   'Fill rate %', 'Attendance rate %', 'Waitlist', 'Average rating', 'Ratings']);
+    fputcsv($out, [__('Event'), __('Date'), __('Organiser'), __('Capacity'), __('Registrations'), __('Approved'), __('Attended'),
+                   __('Fill rate %'), __('Attendance rate %'), __('Waitlist'), __('Average rating'), __('Ratings')]);
     foreach ($events as $ev) {
         fputcsv($out, csv_row([
-            $ev['event_name'], $ev['event_date'], $ev['organiser'] ?? '', $ev['capacity'] ?: 'Unlimited',
+            $ev['event_name'], $ev['event_date'], $ev['organiser'] ?? '', $ev['capacity'] ?: __('Unlimited'),
             $ev['registrations'], $ev['approved'], $ev['held'] ? $ev['attended'] : '',
             $ev['fill_rate'] ?? '', $ev['attendance_rate'] ?? '', $ev['waiting'],
             $ev['rating_avg'] ?? '', $ev['rating_count'],
@@ -300,14 +307,24 @@ function report_axis(int $max): array
     return ['max' => $top, 'ticks' => range(0, $top, $step)];
 }
 
+/** "{n} registrations" etc. for chart tooltips; $noun is 'registrations' or 'ratings'. */
+function report_count_label(string $noun, int $n): string
+{
+    return match ($noun) {
+        'ratings' => _n('{n} rating', '{n} ratings', $n),
+        default   => _n('{n} registration', '{n} registrations', $n),
+    };
+}
+
 /**
  * Column chart for a time series: [['label' => 'Jan 2026', 'count' => 4], ...].
  * The highest and the latest columns carry their value as a direct label.
+ * $noun is 'registrations' or 'ratings'.
  */
 function render_column_chart(array $points, string $noun, string $caption): string
 {
     if (!$points) {
-        return '<p class="viz-empty">No ' . e($noun) . ' in this period.</p>';
+        return '<p class="viz-empty">' . e($noun === 'ratings' ? __('No ratings in this period.') : __('No registrations in this period.')) . '</p>';
     }
     $counts = array_column($points, 'count');
     $axis = report_axis(max($counts));
@@ -323,7 +340,7 @@ function render_column_chart(array $points, string $noun, string $caption): stri
     $labels = '';
     foreach ($points as $i => $p) {
         $h = round($p['count'] / $axis['max'] * 100, 3);
-        $tip = $p['label'] . ': ' . $p['count'] . ' ' . $noun;
+        $tip = $p['label'] . ': ' . report_count_label($noun, $p['count']);
         $value = ($i === $peak || $i === $last) && $p['count'] > 0 ? '<b class="viz-value">' . $p['count'] . '</b>' : '';
         $cols .= '<div class="viz-col" tabindex="0" data-tip="' . e($tip) . '" aria-label="' . e($tip) . '">'
                . '<span class="viz-bar" style="height:' . $h . '%">' . $value . '</span></div>';
@@ -331,8 +348,10 @@ function render_column_chart(array $points, string $noun, string $caption): stri
         $labels .= '<span' . ($i % $every ? ' class="is-skipped"' : '') . '>' . e($short) . '</span>';
     }
 
-    $summary = $caption . ': ' . count($points) . ' months from ' . $points[0]['label'] . ' to ' . $points[$last]['label']
-             . ', highest ' . $points[$peak]['count'] . ' in ' . $points[$peak]['label'] . '.';
+    $summary = __('{caption}: {n} months from {first} to {last}, highest {max} in {peak}.', [
+        'caption' => $caption, 'n' => count($points), 'first' => $points[0]['label'], 'last' => $points[$last]['label'],
+        'max' => $points[$peak]['count'], 'peak' => $points[$peak]['label'],
+    ]);
     return '<figure class="viz viz-columns" aria-label="' . e($summary) . '">'
          . '<div class="viz-plot">' . $grid . '<div class="viz-cols">' . $cols . '</div></div>'
          . '<div class="viz-xlabels" aria-hidden="true">' . $labels . '</div>'
@@ -341,19 +360,19 @@ function render_column_chart(array $points, string $noun, string $caption): stri
 
 /**
  * Horizontal bars with the label and value written out: [['label' => 'Student', 'count' => 12], ...].
- * Shares show each bar's part of the total.
+ * Shares show each bar's part of the total. $noun is 'registrations' or 'ratings'.
  */
 function render_bar_list(array $items, string $noun): string
 {
     $total = array_sum(array_column($items, 'count'));
     if ($total === 0) {
-        return '<p class="viz-empty">No ' . e($noun) . ' yet.</p>';
+        return '<p class="viz-empty">' . e($noun === 'ratings' ? __('No ratings yet.') : __('No registrations yet.')) . '</p>';
     }
     $max = max(array_column($items, 'count'));
     $html = '<ul class="viz viz-bars">';
     foreach ($items as $item) {
         $share = round($item['count'] / $total * 100);
-        $tip = $item['label'] . ': ' . $item['count'] . ' ' . $noun . ' (' . $share . '%)';
+        $tip = $item['label'] . ': ' . report_count_label($noun, $item['count']) . ' (' . $share . '%)';
         $html .= '<li tabindex="0" data-tip="' . e($tip) . '">'
                . '<span class="viz-bars-label">' . ($item['html'] ?? e($item['label'])) . '</span>'
                . '<span class="viz-bars-track"><span class="viz-bar" style="width:' . round($item['count'] / $max * 100, 3) . '%"></span></span>'
