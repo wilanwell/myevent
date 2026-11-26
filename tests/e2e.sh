@@ -11,6 +11,7 @@
 #   DB     database name                 default myevent
 #   MYSQL_OPTS  client options           default -uroot   (CI: "-h127.0.0.1 -uroot -proot")
 #   PHP    php binary for tools/         default /c/xampp/php/php.exe
+#   SQL_TZ UTC offset of APP_TIMEZONE    default +08:00 (Asia/Kuala_Lumpur)
 #
 # Requires MAIL_DRIVER=log in .env (the reset test reads storage/mail).
 # Creates throwaway accounts qa_*@example.test and removes them at the end.
@@ -26,7 +27,9 @@ PW='Qa-Test-Pass1'
 PASSED=0
 FAILED=0
 
-sql()  { "$MYSQL" ${MYSQL_OPTS:--uroot} "$DB" -N -e "$1" | tr -d '\r'; }   # strip CR from Windows mysql output
+# NOW() must mean the same as in the app, whatever zone the database server runs in (CI uses UTC).
+SQL_TZ=${SQL_TZ:-+08:00}
+sql()  { "$MYSQL" ${MYSQL_OPTS:--uroot} "$DB" -N -e "SET time_zone = '$SQL_TZ'; $1" | tr -d '\r'; }   # strip CR from Windows mysql output
 pass() { echo "PASS  $1"; PASSED=$((PASSED + 1)); }
 fail() { echo "FAIL  $1"; FAILED=$((FAILED + 1)); }
 check(){ if eval "$2"; then pass "$1"; else fail "$1"; fi; }
