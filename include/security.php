@@ -129,6 +129,33 @@ function end_session(): void
     session_destroy();
 }
 
+/**
+ * Sign $user in: new session ID (prevents fixation) and fresh session data.
+ * $user needs user_id, name, email, role and locale. Returns the page to land on.
+ */
+function login_start_session(mysqli $conn, array $user): string
+{
+    session_regenerate_id(true);
+    $_SESSION = [
+        'loggedin'      => true,
+        'user_id'       => (int) $user['user_id'],
+        'id'            => (int) $user['user_id'], // legacy key still read by some pages
+        'email'         => $user['email'],
+        'name'          => $user['name'],
+        'role'          => trim($user['role']),
+        'last_activity' => time(),
+        // The account's language wins; an account without one adopts the language in use now.
+        'locale'        => isset(LOCALES[$user['locale'] ?? '']) ? $user['locale'] : current_locale(),
+    ];
+    if (($user['locale'] ?? null) !== $_SESSION['locale']) {
+        $up = $conn->prepare('UPDATE users SET locale = ? WHERE user_id = ?');
+        $up->bind_param('si', $_SESSION['locale'], $_SESSION['user_id']);
+        $up->execute();
+        $up->close();
+    }
+    return $_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'index.php';
+}
+
 /** Log out and send to the login page, e.g. when the signed-in account no longer exists. */
 function force_logout(?string $message = null): void
 {

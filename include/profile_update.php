@@ -43,7 +43,9 @@ function handle_profile_update(mysqli $conn, string $backPath): void
     if (mb_strlen($bio) > 1000) {
         $errors[] = __('Bio must be 1000 characters or fewer.');
     }
-    if ($newPassword !== '') {
+    if ($newPassword !== '' && is_demo_user($conn, $user_id)) {
+        $errors[] = __('Demo accounts cannot change their password.');
+    } elseif ($newPassword !== '') {
         if (!password_verify($currentPwd, $current['password'])) {
             $errors[] = __('Your current password is incorrect.');
         } elseif (strlen($newPassword) < 8 || !preg_match('/[A-Za-z]/', $newPassword) || !preg_match('/\d/', $newPassword)) {

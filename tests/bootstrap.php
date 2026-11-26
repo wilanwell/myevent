@@ -26,8 +26,9 @@ foreach ($defaults as $key => $value) {
     }
 }
 
-// The settings that must not leak in from a developer's .env.
-foreach (['MAIL_DRIVER' => 'log', 'SMTP_HOST' => ''] as $key => $value) {
+// The settings that must not leak in from a developer's .env. Demo mode is on so its guards and
+// demo_reset() are tested; the reset only ever sees this throwaway _test database.
+foreach (['MAIL_DRIVER' => 'log', 'SMTP_HOST' => '', 'APP_DEMO' => 'true'] as $key => $value) {
     putenv("$key=$value");
 }
 

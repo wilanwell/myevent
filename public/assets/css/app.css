@@ -762,3 +762,14 @@ a.badge:hover { filter: brightness(0.97); }
     .topbar-title { display: none; }
     .topbar-actions { margin-left: auto; }
 }
+
+/* ---------- Demo mode band (APP_DEMO=true only) ---------- */
+.demo-band {
+    display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+    padding: 6px var(--sp-4); font-size: var(--fs-xs); line-height: 1.4; text-align: center;
+    background: var(--saffron-tint); color: var(--saffron-ink); border-bottom: 1px solid var(--line);
+}
+.demo-band strong { font-weight: 700; margin-right: 4px; }
+@media (max-width: 680px) {
+    .demo-band-text { display: none; }
+}

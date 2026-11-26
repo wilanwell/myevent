@@ -53,6 +53,22 @@ Back up first (`mysqldump -u root myevent > backup.sql`).
   `.ics` file (`event_calendar.php`) for Outlook and Apple Calendar, with a reminder one hour before.
   Organisers can set an optional end time; without one, calendars assume two hours.
 
+## Demo mode (public showcase)
+
+For a portfolio or recruiter demo, set `APP_DEMO=true` (and `MAIL_DRIVER=log`) in `.env`:
+
+- The login page gains a **Try the demo** box: one click signs in as the seeded participant,
+  organiser or admin (`student@` / `organiser@` / `admin@myevent.test`), no password needed.
+- Every signed-in page shows a thin **Demo mode** band.
+- The demo accounts are protected: no password changes, and admins cannot edit or delete them.
+- `php tools/demo_reset.php --yes` empties every table and deletes the uploads that database used, then loads
+  `database/seed.sql` and `database/demo.sql` (past events with attendance and ratings, a full
+  event with a waitlist, pending requests). Run it nightly from cron. It refuses to run unless
+  `APP_DEMO=true`, so it can never wipe a real site.
+
+With `APP_DEMO=false` (the default) none of this exists: `auth/demo_login.php` returns 404.
+Logic lives in `include/demo.php`.
+
 ## Reports
 
 **Admin → Reports** covers every event (optionally one organiser); **Organise → Reports** shows an organiser
@@ -142,7 +158,7 @@ Three layers, all run by CI (`.github/workflows/ci.yml`) on every push and pull 
 |---|---|---|
 | **Lint** `php tools/lint.php` | Every PHP file parses | PHP only |
 | **PHPUnit** `vendor/bin/phpunit` | 125 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log, report figures and charts, translations and per-recipient email language | MySQL/MariaDB |
-| **End-to-end** `bash tests/e2e.sh` | 102 HTTP checks against the running app: web root isolation, CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
+| **End-to-end** `bash tests/e2e.sh` | 107 HTTP checks against the running app: web root isolation, demo mode off by default, CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
 
 ### First time
 
@@ -196,7 +212,7 @@ myevent/
 ├── lang/ms.php             Malay translations
 ├── database/               schema.sql, seed.sql, migrations/
 ├── storage/                logs/, backups/, mail/ (runtime data)
-├── tools/                  command-line jobs: send_mail, backup, maintenance, check_production, lint, i18n
+├── tools/                  command-line jobs: send_mail, backup, maintenance, demo_reset, check_production, lint, i18n
 ├── tests/                  PHPUnit (Unit, Integration, Support), e2e.sh, run.sh
 ├── .github/workflows/      CI
 ├── .env                    local settings (never committed)
@@ -214,6 +230,7 @@ myevent/
 | `include/participants_manager.php` | Review, check-in and CSV export screen shared by organisers and admins |
 | `include/mailer.php`, `include/notify.php` | `send_mail()` (log and SMTP drivers), outbox queue, notifications in the recipient's language |
 | `include/reports.php` | Report queries and HTML charts |
+| `include/demo.php` | Demo mode: demo accounts, their guards, `demo_reset()` |
 | `include/i18n.php`, `lang/ms.php`, `public/lang.php` | Translations: `__()` / `t()` / `_n()` / `ldate()`, the Malay dictionary, the EN/BM switch |
 | `public/assets/css/app.css` | Design system: tokens, layout shell and components |
 | `public/assets/css/public.css` | Public pages: hero, event cards, event detail, sign-in |
@@ -221,8 +238,8 @@ myevent/
 | `public/auth/`, `public/users/`, `public/admin/` | Pages. Each page sets `$page_title` / `$nav_active` and includes a layout |
 | `public/uploads/` | User uploads (script execution blocked by `public/uploads/.htaccess`) |
 | `public/health.php` | Uptime-monitor endpoint: `ok` / 200 when PHP and the database respond |
-| `database/` | `schema.sql`, `seed.sql`, `migrations/` |
-| `tools/` | `send_mail.php` (cron every 5 min), `backup.php`, `maintenance.php`, `check_production.php`, `lint.php`, `i18n.php` |
+| `database/` | `schema.sql`, `seed.sql`, `demo.sql` (extra showcase data), `migrations/` |
+| `tools/` | `send_mail.php` (cron every 5 min), `backup.php`, `maintenance.php`, `demo_reset.php`, `check_production.php`, `lint.php`, `i18n.php` |
 | `tests/` | PHPUnit suites (`phpunit.xml`), `e2e.sh`, `run.sh`; CI in `.github/workflows/ci.yml` |
 | `storage/logs`, `storage/backups`, `storage/mail` | Error log, backups, development mailbox |
 

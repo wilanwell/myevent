@@ -44,6 +44,10 @@ section('Application settings (.env)');
 DEBUG_MODE
     ? report('FAIL', 'APP_DEBUG is true', 'Set APP_DEBUG=false so error details are never shown to visitors.')
     : report('PASS', 'APP_DEBUG is false');
+DEMO_MODE
+    ? report('WARN', 'APP_DEMO is true: one-click demo sign-in is on',
+        'Fine for a public showcase that runs tools/demo_reset.php nightly. Never on a site with real users.')
+    : report('PASS', 'APP_DEMO is false');
 IS_HTTPS
     ? report('PASS', 'APP_URL uses https (' . BASE_URL . ')')
     : report($isLocal ? 'WARN' : 'FAIL', 'APP_URL is not https (' . BASE_URL . ')', 'Install a certificate (Let\'s Encrypt / AutoSSL) and set APP_URL=https://...');

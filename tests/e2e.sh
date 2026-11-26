@@ -118,6 +118,15 @@ for path in .env config.php include/security.php lang/ms.php database/schema.sql
     check "$path is not served ($code)" '[ "$code" = 403 ] || [ "$code" = 404 ]'
 done
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/assets/css/app.css"); check "public assets are served ($code)" '[ "$code" = 200 ]'
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/tools/demo_reset.php"); check "demo reset tool is not served ($code)" '[ "$code" = 403 ] || [ "$code" = 404 ]'
+
+echo "== Demo mode is off by default"
+curl -s "$BASE/auth/login.php" | grep -q 'demo-box' && fail "login page has no demo sign-in" || pass "login page has no demo sign-in"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/auth/demo_login.php"); check "demo sign-in does not exist ($code)" '[ "$code" = 404 ]'
+t=$(tok b "users/dashboard.php")
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code} %{redirect_url}' --data-urlencode "csrf_token=$t" -d role=admin "$BASE/auth/demo_login.php")
+check "posting to demo sign-in does not sign in ($r)" '[[ "$r" == 404* ]]'
+curl -s -b "$(jar b)" "$BASE/users/dashboard.php" | grep -q 'demo-band' && fail "signed-in pages have no demo band" || pass "signed-in pages have no demo band"
 
 echo "== Ticket QR check-in"
 ticket=$(curl -s -b "$(jar b)" "$BASE/users/generate_ticket.php?event_id=$EV")

@@ -183,6 +183,10 @@ UPDATE users SET role = 'Admin' WHERE email = 'you@example.edu.my';
 - VPS: `crontab -e` with the same lines (use `which php` for the path).
 - Windows server / XAMPP: *Task Scheduler* → action `C:\xampp\php\php.exe` with argument `C:\xampp\htdocs\myevent\tools\backup.php`.
 
+**Public demo only** (`APP_DEMO=true`): restore the demo data every night, e.g.
+`30 4 * * * /usr/local/bin/php /home/cpaneluser/myevent/tools/demo_reset.php --yes >/dev/null 2>&1`.
+It erases every row and the uploads they used, so it refuses to run unless `APP_DEMO=true`. See *Public demo* below.
+
 Backups stay on the same server, so also **copy them somewhere else** regularly
 (download from `storage/backups` or sync with `rclone`). Test a restore now and then:
 
@@ -226,6 +230,23 @@ Fix every **FAIL**. Then point an uptime monitor at `https://events.example.edu.
 
 ---
 
+## Public demo (portfolio / recruiters)
+
+A showcase copy where anyone can click around without an account. Follow sections 1 to 6 as usual
+(a free host with PHP 8.2+ and MySQL is enough), with these differences:
+
+1. **Database:** import `database/schema.sql` only, then run `php tools/demo_reset.php --yes` once
+   (it loads `seed.sql` and `demo.sql`). Without SSH, import `schema.sql`, `seed.sql` and `demo.sql`
+   in that order in phpMyAdmin instead.
+2. **`.env`:** `APP_DEMO=true`, `MAIL_DRIVER=log` (nothing is ever emailed), `APP_DEBUG=false`.
+3. **Cron:** `demo_reset.php --yes` nightly (section 8); `send_mail.php` every 5 minutes still writes
+   reminders to the in-app notifications. Without cron the demo simply never resets.
+4. `php tools/check_production.php` reports `APP_DEMO is true` as a warning: expected here.
+
+Visitors use **Try the demo** on the login page. Never turn demo mode on for a site with real users:
+anyone could sign in as the admin.
+
+---
 ## Troubleshooting
 
 | Symptom | Likely cause |

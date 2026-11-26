@@ -252,3 +252,26 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     .auth-main { padding: var(--sp-10) var(--sp-4); }
     .site-footer-inner { padding: var(--sp-5) var(--sp-4); }
 }
+
+/* ---------- Demo sign-in (APP_DEMO=true only) ---------- */
+.demo-box { margin-top: var(--sp-8); padding: var(--sp-5); border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); background: var(--surface-2); }
+.demo-box h3 { font-size: var(--fs-lg); margin: 0; }
+.demo-box > p { color: var(--muted); font-size: var(--fs-sm); margin: var(--sp-1) 0 var(--sp-4); }
+.demo-roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.demo-roles form { margin: 0; }
+.demo-role {
+    width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: var(--sp-3) var(--sp-2); border: 1px solid var(--line-strong); border-radius: var(--radius-md);
+    background: var(--surface); color: var(--ink); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+    box-shadow: var(--shadow-sm); transition: border-color .15s, background-color .15s;
+}
+.demo-role i { color: var(--blue); font-size: 1.1rem; }
+.demo-role small { color: var(--muted); font-size: 0.75rem; font-weight: 400; line-height: 1.3; text-align: center; }
+.demo-role:hover { border-color: var(--blue-line); background: var(--blue-tint); }
+.demo-role:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.demo-box .demo-note { color: var(--faint); font-size: var(--fs-xs); margin: var(--sp-4) 0 0; }
+@media (max-width: 420px) {
+    .demo-roles { grid-template-columns: 1fr; }
+    .demo-role { flex-direction: row; justify-content: flex-start; text-align: left; }
+    .demo-role small { margin-left: auto; text-align: right; }
+}

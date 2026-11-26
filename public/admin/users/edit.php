@@ -22,7 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category = (string) ($_POST['category'] ?? '');
     $user = array_merge($user, compact('name', 'email', 'role', 'category'));
 
-    if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if (is_demo_account($original['email'])) {
+        $error = __('Demo accounts cannot be edited or deleted, so every visitor can still sign in.');
+    } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = __('Enter a name and a valid email address.');
     } elseif (!in_array($role, ['User', 'Admin'], true) || !in_array($category, ['Student', 'Staff', 'Public'], true)) {
         $error = __('Choose a valid role and category.');

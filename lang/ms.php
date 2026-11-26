@@ -689,4 +689,18 @@ return [
     '{students} students, {staff} staff' => '{students} pelajar, {staff} staf',
     '{taken} of {capacity} places are now taken.' => '{taken} daripada {capacity} tempat kini telah diambil.',
     '{taken} of {capacity} places taken' => '{taken} daripada {capacity} tempat diambil',
+    // Demo mode
+    'Approve, check in and see reports' => 'Luluskan, daftar masuk dan lihat laporan',
+    'Browse, register and get tickets' => 'Lihat acara, daftar dan dapatkan tiket',
+    'Demo accounts cannot be edited or deleted, so every visitor can still sign in.' => 'Akaun demo tidak boleh diubah atau dipadam, supaya setiap pelawat masih boleh log masuk.',
+    'Demo accounts cannot change their password.' => 'Akaun demo tidak boleh menukar kata laluan.',
+    'Demo data is restored every night, so feel free to try anything.' => 'Data demo dipulihkan setiap malam, jadi cubalah apa sahaja.',
+    'Demo mode' => 'Mod demo',
+    'Manage every event and account' => 'Urus semua acara dan akaun',
+    'Page not found' => 'Halaman tidak dijumpai',
+    'Sign in with one click, no password needed.' => 'Log masuk dengan satu klik, tanpa kata laluan.',
+    'That demo account is not available right now. The demo data is restored every night.' => 'Akaun demo itu tidak tersedia buat masa ini. Data demo dipulihkan setiap malam.',
+    'The page you are looking for does not exist.' => 'Halaman yang anda cari tidak wujud.',
+    'Try the demo' => 'Cuba demo',
+    'You are exploring a demo. Changes are reset every night and no emails are sent.' => 'Anda sedang meneroka demo. Perubahan ditetapkan semula setiap malam dan tiada emel dihantar.',
 ];

@@ -25,6 +25,11 @@ if (!$user) {
     redirect('admin/users/manage.php');
 }
 
+if (is_demo_account($user['email'])) {
+    flash('error', __('Demo accounts cannot be edited or deleted, so every visitor can still sign in.'));
+    redirect('admin/users/manage.php');
+}
+
 $affectedEvents = array_column(db_all($conn,
     "SELECT DISTINCT event_id FROM registrations WHERE user_id = ? AND approval_status <> 'Rejected'", 'i', [$id]), 'event_id');
 

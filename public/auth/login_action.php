@@ -48,24 +48,5 @@ if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
 
 login_clear_failures($conn, $email);
 
-// Prevent session fixation: new session ID, fresh session data.
-session_regenerate_id(true);
-$_SESSION = [
-    'loggedin'      => true,
-    'user_id'       => (int) $user['user_id'],
-    'id'            => (int) $user['user_id'], // legacy key still read by some pages
-    'email'         => $email,
-    'name'          => $user['name'],
-    'role'          => trim($user['role']),
-    'last_activity' => time(),
-    // The account's language wins; an account without one adopts the language in use now.
-    'locale'        => isset(LOCALES[$user['locale'] ?? '']) ? $user['locale'] : current_locale(),
-];
-if (($user['locale'] ?? null) !== $_SESSION['locale']) {
-    $up = $conn->prepare('UPDATE users SET locale = ? WHERE user_id = ?');
-    $up->bind_param('si', $_SESSION['locale'], $_SESSION['user_id']);
-    $up->execute();
-    $up->close();
-}
-
-redirect($_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'index.php');
+$user['email'] = $email;
+redirect(login_start_session($conn, $user));
