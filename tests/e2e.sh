@@ -170,6 +170,16 @@ ICS_PATH="$WORK/e.ics"; command -v cygpath >/dev/null && ICS_PATH=$(cygpath -w "
 crlf=$(python -c "import sys; d=open(sys.argv[1],'rb').read(); print(int(d.count(b'\n') == d.count(b'\r\n') and max(len(l) for l in d.split(b'\r\n')) <= 75))" "$ICS_PATH" 2>/dev/null || echo error)
 check ".ics uses CRLF and folds long lines" '[ "$crlf" = 1 ]'
 
+echo "== Reports"
+page=$(curl -s -b "$(jar a)" "$BASE/users/reports.php?range=all")
+echo "$page" | grep -q 'QA Real Event' && echo "$page" | grep -q 'class="viz viz-columns"' && pass "organiser report lists their event with a chart" || fail "organiser report lists their event with a chart"
+curl -s -b "$(jar b)" "$BASE/users/reports.php?range=all" | grep -q 'QA Real Event' && fail "reports only show your own events" || pass "reports only show your own events"
+hdr=$(curl -s -b "$(jar a)" -D - -o "$WORK/r.csv" "$BASE/users/reports.php?range=all&export=csv")
+echo "$hdr" | grep -qi 'content-type: text/csv' && grep -q 'QA Real Event' "$WORK/r.csv" && pass "report CSV export" || fail "report CSV export"
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/reports.php"); check "non-admin cannot open admin reports ($r)" '[ "$r" = 403 ]'
+r=$(curl -s -o /dev/null -w '%{redirect_url}' "$BASE/users/reports.php"); check "reports need a login" '[[ "$r" == *auth/login.php ]]'
+r=$(curl -s -b "$(jar a)" -o /dev/null -w '%{http_code}' "$BASE/users/reports.php?range=custom&from=2026-01-01%27%20OR%201%3D1&to=x"); check "bad report dates are ignored ($r)" '[ "$r" = 200 ]'
+
 echo "== Email notifications"
 n=$(mails qa_a@example.test "New registration"); check "organiser emailed about a new registration ($n)" '[ "$n" -ge 1 ]'
 n=$(mails qa_b@example.test "You're in"); check "participant emailed when approved ($n)" '[ "$n" -ge 1 ]'

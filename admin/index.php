@@ -41,6 +41,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <p>Activity across every event and account on <?= e(APP_NAME) ?>.</p>
     </div>
     <div class="page-header-actions">
+        <a class="btn btn-secondary" href="reports.php"><i class="fa-solid fa-chart-column"></i> Reports</a>
         <a class="btn btn-secondary" href="users/manage.php"><i class="fa-solid fa-users"></i> Users</a>
         <a class="btn btn-primary" href="events/create.php"><i class="fa-solid fa-plus"></i> Create event</a>
     </div>

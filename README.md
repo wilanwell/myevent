@@ -53,6 +53,22 @@ Back up first (`mysqldump -u root myevent > backup.sql`).
   `.ics` file (`event_calendar.php`) for Outlook and Apple Calendar, with a reminder one hour before.
   Organisers can set an optional end time; without one, calendars assume two hours.
 
+## Reports
+
+**Admin → Reports** covers every event (optionally one organiser); **Organise → Reports** shows an organiser
+their own events only. Both offer a period filter (last 30 / 90 days, 12 months, all time or custom dates,
+by event date) and show:
+
+- headline numbers: events, registrations and unique people, attendance rate, average rating
+- registrations per month (with a table view), registrations by participant category, rating distribution
+- a per-event table: registrations against capacity, attendance, rating and waitlist
+
+**Export CSV** downloads the per-event table (every event, not just the 50 shown) and **Print or save PDF**
+prints a clean copy (sidebar and filters hidden), which the browser can save as PDF. Admin exports are written
+to the audit log. Definitions: *registrations* are pending + approved places; *attendance* is checked-in ÷ approved,
+only for events that have taken place. Queries live in `include/reports.php`; charts are plain HTML/CSS
+(no chart library), with hover and keyboard focus showing exact values.
+
 ## Email notifications
 
 Every notification appears under the bell icon and, unless the person switched it off in
@@ -102,8 +118,8 @@ Three layers, all run by CI (`.github/workflows/ci.yml`) on every push and pull 
 | Layer | What it covers | Needs |
 |---|---|---|
 | **Lint** `php tools/lint.php` | Every PHP file parses | PHP only |
-| **PHPUnit** `vendor/bin/phpunit` | 86 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log | MySQL/MariaDB |
-| **End-to-end** `bash tests/e2e.sh` | 71 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
+| **PHPUnit** `vendor/bin/phpunit` | 106 tests: escaping, CSRF, signed tickets, calendar files, email building, waitlist promotion, mail queue retries, notification preferences, reminders, login throttling, audit log, report figures and charts | MySQL/MariaDB |
+| **End-to-end** `bash tests/e2e.sh` | 77 HTTP checks against the running app: CSRF, uploads, access control, approvals, check-in, password reset, sessions, brute force | Apache + MySQL |
 
 ### First time
 
@@ -163,6 +179,7 @@ accounts and removes them afterwards. Override `BASE`, `MYSQL`, `MYSQL_OPTS`, `D
 | `tests/e2e.sh`, `tests/run.sh` | End-to-end suite; runner for every check |
 | `.github/workflows/ci.yml` | CI: lint, PHPUnit on PHP 8.2 and 8.3, end-to-end under Apache |
 | `tools/lint.php` | Syntax check of every PHP file |
+| `include/reports.php`, `include/partials/report_view.php` | Report queries, HTML charts and the shared reports screen |
 | `tools/check_production.php` | Pre-launch checklist (exit code 1 when something must be fixed) |
 | `tools/backup.php` | Database + uploads backup with rotation (schedule daily) |
 | `tools/send_mail.php` | Delivers queued emails and day-before reminders (cron every 5 minutes) |

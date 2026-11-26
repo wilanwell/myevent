@@ -35,8 +35,8 @@ $ts = strtotime($data['event_date']);
     <title>Ticket: <?= e($data['event_name']) ?> | <?= e(APP_NAME) ?></title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=11">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=11">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=13">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=13">
     <style>
         body { padding: 40px 20px; }
         .ticket-page { max-width: 640px; margin: 0 auto; }

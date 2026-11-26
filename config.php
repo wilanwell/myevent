@@ -57,6 +57,7 @@ require_once APP_ROOT . '/include/helpers.php';
 require_once APP_ROOT . '/include/mailer.php';
 require_once APP_ROOT . '/include/notify.php';
 require_once APP_ROOT . '/include/waitlist.php';
+require_once APP_ROOT . '/include/reports.php';
 
 set_exception_handler(function (Throwable $ex) {
     error_log('[' . date('c') . '] ' . get_class($ex) . ': ' . $ex->getMessage()

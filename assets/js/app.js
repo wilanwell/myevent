@@ -66,6 +66,49 @@
     });
     syncThemeButtons();
 
+    // Print button: <button data-print>
+    document.querySelectorAll('[data-print]').forEach(function (btn) {
+        btn.addEventListener('click', function () { window.print(); });
+    });
+
+    // Report filters: typing a date switches the period to "Custom dates"
+    document.querySelectorAll('[data-custom-range]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var range = input.form && input.form.querySelector('select[name=range]');
+            if (range) { range.value = 'custom'; }
+        });
+    });
+
+    // Chart hover / focus text: any element with data-tip inside a .viz
+    var tip = null;
+    function showTip(el) {
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.className = 'viz-tip';
+            tip.setAttribute('role', 'presentation');
+            document.body.appendChild(tip);
+        }
+        tip.textContent = el.getAttribute('data-tip');
+        tip.hidden = false;
+        var r = el.getBoundingClientRect();
+        var bar = el.querySelector('.viz-bar') || el;
+        var top = bar.getBoundingClientRect().top - (bar.querySelector('.viz-value') ? 20 : 0);
+        if (bar === el) { top = r.top; }
+        var x = r.left + r.width / 2 + window.scrollX;
+        var w = tip.offsetWidth;
+        x = Math.max(window.scrollX + 8 + w / 2, Math.min(x, window.scrollX + document.documentElement.clientWidth - 8 - w / 2));
+        tip.style.left = x + 'px';
+        tip.style.top = (top + window.scrollY - tip.offsetHeight - 8) + 'px';
+    }
+    function hideTip() { if (tip) { tip.hidden = true; } }
+    document.querySelectorAll('.viz [data-tip]').forEach(function (el) {
+        el.addEventListener('mouseenter', function () { showTip(el); });
+        el.addEventListener('focus', function () { showTip(el); });
+        el.addEventListener('mouseleave', hideTip);
+        el.addEventListener('blur', hideTip);
+    });
+    window.addEventListener('scroll', hideTip, { passive: true });
+
     // Auto-submit filters: <select data-autosubmit>
     document.querySelectorAll('select[data-autosubmit]').forEach(function (select) {
         select.addEventListener('change', function () { select.form.submit(); });

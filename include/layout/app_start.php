@@ -24,6 +24,7 @@ if ($nav_area === 'admin') {
             'admin_overview' => ['Overview',     'fa-gauge-high',    $u . 'admin/index.php'],
             'admin_events'   => ['All events',   'fa-calendar-days', $u . 'admin/events/manage.php'],
             'admin_create'   => ['Create event', 'fa-circle-plus',   $u . 'admin/events/create.php'],
+            'admin_reports'  => ['Reports',      'fa-chart-column',  $u . 'admin/reports.php'],
             'admin_users'    => ['Users',        'fa-users',         $u . 'admin/users/manage.php'],
             'admin_audit'    => ['Audit log',    'fa-clipboard-list', $u . 'admin/audit.php'],
             'admin_profile'  => ['My profile',   'fa-user-gear',     $u . 'admin/profile.php'],
@@ -45,6 +46,7 @@ if ($nav_area === 'admin') {
             'create_event'     => ['Create event',     'fa-circle-plus',       $u . 'users/create_event.php'],
             'participants'     => ['Participants',     'fa-users-gear',        $u . 'users/manage_participants.php'],
             'checkin'          => ['Check in',         'fa-qrcode',            $u . 'users/checkin.php'],
+            'reports'          => ['Reports',          'fa-chart-column',      $u . 'users/reports.php'],
         ],
         'Account' => [
             'profile'          => ['My profile',       'fa-user-pen',          $u . 'users/profile.php'],
@@ -68,7 +70,7 @@ $__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/p
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=11">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=13">
 </head>
 <body class="app">
 <a class="skip-link" href="#main">Skip to content</a>
