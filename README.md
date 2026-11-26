@@ -3,6 +3,42 @@
 Campus event management system: event announcement, registration, organiser
 approval, attendance tracking, notifications and participant exports.
 
+[![CI](https://github.com/wilanwell/myevent/actions/workflows/ci.yml/badge.svg)](https://github.com/wilanwell/myevent/actions/workflows/ci.yml)
+
+**Live demo: [myevent-demo.alwaysdata.net](https://myevent-demo.alwaysdata.net)**. On the login page, use
+*Try the demo* to sign in with one click as a participant, an organiser or an admin. No account is needed,
+and the demo data is restored every night.
+
+![Home page](docs/screenshots/home.png)
+
+## Highlights
+
+- **Full event lifecycle:** organisers publish events. Participants register, then wait for approval or join a
+  waitlist that promotes them automatically. They receive a signed QR ticket, are checked in at the door,
+  and rate the event afterwards.
+- **Three roles:** participant, organiser (each user can organise their own events) and administrator. Every
+  page and action checks access.
+- **Reports:** registrations per month, attendance and approval rates, ratings and categories, drawn with
+  accessible HTML/CSS charts. Reports can be exported to CSV or printed to PDF.
+- **Email and in-app notifications:** a mail outbox queue with retries and SMTP support, plus event reminders.
+  Messages are sent in each recipient's language.
+- **Bilingual interface:** English and Bahasa Melayu, covering 698 strings, dates and emails. A CI check fails
+  the build when a string is untranslated.
+- **Security:** CSRF protection on every POST, a strict Content-Security-Policy with nonces, hardened sessions,
+  login throttling and safe image uploads. Only `public/` is served as the web root, and an audit log records
+  admin actions.
+- **Tested:** 130 PHPUnit tests (unit and integration, against a throwaway database) and 107 end-to-end HTTP
+  checks, run by GitHub Actions on PHP 8.2 and 8.3.
+
+| Event page | Organiser: review and check-in |
+|---|---|
+| ![Event page](docs/screenshots/event.png) | ![Participants](docs/screenshots/participants.png) |
+| **Reports** | **One-click demo sign-in** |
+| ![Reports](docs/screenshots/reports.png) | ![Demo sign-in](docs/screenshots/login.png) |
+
+Built with plain PHP 8 and MySQLi, with no framework, so the routing, security, mail queue, i18n and charts are
+all visible in the code. See [Project layout](#project-layout) for where everything lives.
+
 **Stack:** PHP 8.1+ (mysqli), MariaDB 10.4+ / MySQL 8.0+, Apache 2.4 (`mod_rewrite`/`.htaccess` enabled). Web root: `public/`.
 
 > Deploying to a real server? Follow **[DEPLOY.md](DEPLOY.md)** and finish with `php tools/check_production.php`.
