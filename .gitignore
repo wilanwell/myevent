@@ -9,6 +9,7 @@
 storage/logs/*
 !storage/logs/.gitkeep
 storage/backups/*
+!storage/backups/.gitkeep
 
 # User uploads (the .htaccess that blocks script execution IS tracked)
 public/uploads/events/*

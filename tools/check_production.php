@@ -73,7 +73,8 @@ $schemaOk = db_value($conn, "SELECT COUNT(*) FROM information_schema.TABLES WHER
 $schemaOk ? report('PASS', 'Schema is up to date') : report('FAIL', 'Schema is behind', 'Apply the files in database/migrations/ in order.');
 $demo = (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE email LIKE '%@myevent.test'");
 $demo > 0
-    ? report($isLocal ? 'WARN' : 'FAIL', "$demo demo account(s) from seed.sql exist", 'Delete them or change their passwords before going live.')
+    ? report($isLocal || DEMO_MODE ? 'WARN' : 'FAIL', "$demo demo account(s) from seed.sql exist",
+        DEMO_MODE ? 'Expected on a public demo (APP_DEMO=true).' : 'Delete them or change their passwords before going live.')
     : report('PASS', 'No demo accounts');
 $admins = (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE role = 'Admin'");
 $admins > 0 ? report('PASS', "$admins administrator account(s)") : report('FAIL', 'No administrator account');
@@ -81,7 +82,8 @@ $admins > 0 ? report('PASS', "$admins administrator account(s)") : report('FAIL'
 section('Email');
 env('MAIL_DRIVER', 'log') === 'smtp' && env('SMTP_HOST', '') !== ''
     ? report('PASS', 'SMTP is configured (' . env('SMTP_HOST') . ')')
-    : report($isLocal ? 'WARN' : 'FAIL', 'Emails are only written to storage/mail', 'Set MAIL_DRIVER=smtp and the SMTP_* settings, or password resets will not reach anyone.');
+    : report($isLocal || DEMO_MODE ? 'WARN' : 'FAIL', 'Emails are only written to storage/mail',
+        DEMO_MODE ? 'Expected on a public demo: nothing is ever emailed.' : 'Set MAIL_DRIVER=smtp and the SMTP_* settings, or password resets will not reach anyone.');
 filter_var(env('MAIL_FROM', ''), FILTER_VALIDATE_EMAIL) && !str_ends_with((string) env('MAIL_FROM'), '.test')
     ? report('PASS', 'MAIL_FROM is ' . env('MAIL_FROM'))
     : report($isLocal ? 'WARN' : 'FAIL', 'MAIL_FROM is not a real address (' . env('MAIL_FROM', 'unset') . ')');
@@ -124,10 +126,11 @@ foreach (['.env', 'config.php', 'storage/logs/php-error.log', 'include/security.
 }
 $home = @get_headers(BASE_URL, true, stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 5]]));
 if ($home) {
-    $csp = $home['Content-Security-Policy'] ?? null;
+    $home = array_change_key_case($home, CASE_LOWER);   // HTTP/2 hosts send header names in lower case
+    $csp = $home['content-security-policy'] ?? null;
     $csp ? report('PASS', 'Content-Security-Policy header sent') : report('FAIL', 'Content-Security-Policy header missing');
     if (IS_HTTPS) {
-        isset($home['Strict-Transport-Security']) ? report('PASS', 'HSTS header sent') : report('FAIL', 'HSTS header missing');
+        isset($home['strict-transport-security']) ? report('PASS', 'HSTS header sent') : report('FAIL', 'HSTS header missing');
     }
 }
 
