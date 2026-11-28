@@ -2,6 +2,16 @@
 (function () {
     'use strict';
 
+    // Narrow screens show table rows as cards: label each cell with its column heading.
+    document.querySelectorAll('.table').forEach(function (table) {
+        var heads = Array.prototype.map.call(table.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+        if (!heads.length) { return; }
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+            Array.prototype.forEach.call(tr.children, function (td, i) {
+                if (!td.hasAttribute('data-label')) { td.setAttribute('data-label', heads[i] || ''); }
+            });
+        });
+    });
     // Mobile sidebar drawer
     var body = document.body;
     var toggle = document.querySelector('[data-nav-toggle]');

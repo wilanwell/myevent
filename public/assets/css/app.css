@@ -302,7 +302,7 @@ button.nav-link { width: 100%; border: 0; background: none; font: inherit; curso
 .page-header-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
 
 .back-link {
-    display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--sp-4);
+    display: inline-flex; align-items: center; gap: 6px; min-height: 28px; margin-bottom: var(--sp-4);
     color: var(--muted); text-decoration: none; font-size: var(--fs-sm); font-weight: 500;
 }
 .back-link:hover { color: var(--blue); }
@@ -772,4 +772,30 @@ a.badge:hover { filter: brightness(0.97); }
 .demo-band strong { font-weight: 700; margin-right: 4px; }
 @media (max-width: 680px) {
     .demo-band-text { display: none; }
+}
+
+/* Narrow screens: each table row becomes a card, every value labelled with its column
+   (labels come from the table head, copied onto the cells by app.js). */
+@media (max-width: 680px) {
+    .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .table, .table tbody { display: block; }
+    .table tbody tr { display: block; padding: var(--sp-3) var(--inset); border-bottom: 1px solid var(--line); }
+    .table tbody tr:last-child { border-bottom: 0; }
+    .table td, .table td + td {
+        display: flex; align-items: center; justify-content: flex-end; column-gap: var(--sp-2); row-gap: 2px;
+        padding: var(--sp-1) 0; border-bottom: 0; text-align: right; min-width: 0;
+    }
+    .table td::before { content: attr(data-label); flex: none; max-width: 45%; margin-right: auto; color: var(--muted); font-size: var(--fs-sm); text-align: left; }
+    .table td:first-child { display: block; text-align: left; padding-bottom: var(--sp-2); }
+    .table td:first-child::before, .table td.actions::before, .table td[data-label=""]::before, .table td:not([data-label])::before { content: none; }
+    .table td:empty { display: none; }
+    .table td.actions { flex-wrap: wrap; justify-content: flex-start; white-space: normal; padding-top: var(--sp-2); }
+    .table td.actions:empty { display: none; }
+    .table .actions > * + *, .table .actions form > * + * { margin-left: 0; }
+    .table .actions form { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); }
+    .table td > .meter, .table td > .rate { flex: 0 1 55%; }
+    .report-table td, .report-table td:first-child { white-space: normal; min-width: 0; }
+    .table td { flex-wrap: wrap; }
+    .table td > .cell-sub:not(.badge) { flex-basis: 100%; margin-top: 0; text-align: right; }
+    .table td > .badge.cell-sub, .num .table td > .badge.cell-sub, .table td.num > .badge.cell-sub { margin: 0; }
 }

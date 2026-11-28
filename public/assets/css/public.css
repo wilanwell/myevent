@@ -226,7 +226,7 @@ a.ticket:hover { transform: rotate(0deg) translateY(-2px); color: var(--text); }
     max-width: 1280px; margin: 0 auto; padding: var(--sp-6) var(--sp-8);
     display: flex; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; color: var(--faint); font-size: var(--fs-sm);
 }
-.site-footer a { color: var(--muted); text-decoration: none; }
+.site-footer a { color: var(--muted); text-decoration: none; display: inline-block; padding: 4px 0; } /* at least 24px to tap */
 .site-footer a:hover { color: var(--blue); }
 
 /* ---------- Responsive ---------- */

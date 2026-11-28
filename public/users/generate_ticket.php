@@ -35,8 +35,8 @@ $ts = strtotime($data['event_date']);
     <title><?= t('Ticket: {name}', ['name' => $data['event_name']]) ?> | <?= e(APP_NAME) ?></title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=19">
-    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=19">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/app.css?v=20">
+    <link rel="stylesheet" href="<?= e(BASE_URL) ?>assets/css/public.css?v=20">
     <style>
         body { padding: 40px 20px; }
         .ticket-page { max-width: 640px; margin: 0 auto; }
@@ -44,7 +44,14 @@ $ts = strtotime($data['event_date']);
         .ticket-page .ticket-stub::before, .ticket-page .ticket-stub::after { background: var(--paper); }
         .ticket-code { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
         .ticket-code b { font-size: var(--fs-xl); letter-spacing: 0.06em; color: var(--ink); font-variant-numeric: tabular-nums; }
-        .ticket-actions { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
+        .ticket-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 20px; }
+        .ticket-actions > span { display: flex; flex-wrap: wrap; gap: 8px; }
+        @media (max-width: 520px) {
+            body { padding: 20px 12px; }
+            .ticket-actions > span { width: 100%; }
+            .ticket-actions > span .btn { flex: 1 1 auto; justify-content: center; }
+            .ticket-code b { font-size: var(--fs-lg); letter-spacing: 0.02em; white-space: nowrap; }
+        }
         .ticket-note { color: var(--muted); font-size: var(--fs-sm); margin-top: 16px; text-align: center; }
         .ticket-qr { display: flex; align-items: center; gap: 18px; }
         .ticket-qr #qr { width: 132px; height: 132px; flex: none; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }

@@ -84,7 +84,7 @@ $__profileUrl = $u . (is_admin() ? 'admin/profile.php' : 'users/profile.php');
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=19">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=20">
 </head>
 <body class="app">
 <a class="skip-link" href="#main"><?= t('Skip to content') ?></a>
