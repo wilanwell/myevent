@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_all'])) {
 $total = (int) db_value($conn, 'SELECT COUNT(*) FROM notifications WHERE user_id = ?', 'i', [$user_id]);
 $p = paginate($total, 15);
 $rows = db_all($conn,
-    'SELECT message, is_read, created_at FROM notifications WHERE user_id = ?
+    'SELECT message, message_data, is_read, created_at FROM notifications WHERE user_id = ?
      ORDER BY created_at DESC, notif_id DESC LIMIT ? OFFSET ?', 'iii', [$user_id, $p['per_page'], $p['offset']]);
 
 // Mark as read after fetching, so unread items are still highlighted on this visit.
@@ -56,7 +56,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                 <li class="notice<?= (int) $row['is_read'] === 0 ? ' is-unread' : '' ?>">
                     <span class="notice-icon" aria-hidden="true"><i class="fa-regular fa-bell"></i></span>
                     <div class="notice-body">
-                        <div><?= render_message($row['message']) ?></div>
+                        <div><?= render_message(notification_text($row)) ?></div>
                         <div class="notice-time">
                             <time datetime="<?= e(date('c', strtotime($row['created_at']))) ?>"><?= e(ldate('j M Y, g:i A', $row['created_at'])) ?></time>
                             <?php if ((int) $row['is_read'] === 0): ?><span class="badge badge-brand"><?= t('New') ?></span><?php endif; ?>

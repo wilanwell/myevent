@@ -157,6 +157,27 @@ final class NotificationTest extends DatabaseTestCase
         $this->assertSame('en', current_locale(), 'the language of the sender is restored');
     }
 
+    public function testTheBellFollowsTheLanguageTheReaderUsesNow(): void
+    {
+        $user = $this->makeUser('Reader', ['locale' => 'en']);
+        $event = $this->makeEvent($this->makeUser('Organiser'), ['event_name' => 'Hackathon', 'event_date' => '2030-03-04', 'event_time' => '09:00:00']);
+        $this->register($user, $event, 'Approved');
+        notify_event_changed($this->db,
+            ['event_id' => $event, 'event_name' => 'Hackathon', 'event_date' => '2030-03-04', 'event_time' => '09:00:00', 'end_time' => null, 'venue' => 'Hall A', 'mode' => 'Physical'],
+            ['event_id' => $event, 'event_name' => 'Hackathon', 'event_date' => '2030-03-04', 'event_time' => '14:30:00', 'end_time' => null, 'venue' => 'Hall B', 'mode' => 'Physical']);
+        notify_user($this->db, $user, notice('{name} has registered for: {event}.', ['name' => bold(phrase('A participant')), 'event' => bold('<b>x</b>')], '📩'));
+        $rows = db_all($this->db, 'SELECT message, message_data FROM notifications WHERE user_id = ? ORDER BY notif_id', 'i', [$user]);
+
+        $this->assertSame('📅 The start time, venue of <strong>Hackathon</strong> changed. Check the new details.', $rows[0]['message'], 'stored in the language it was sent in');
+        set_locale('ms');
+        $this->assertSame('📅 Masa mula, tempat bagi <strong>Hackathon</strong> telah berubah. Semak butiran baharu.', notification_text($rows[0]));
+        $this->assertStringContainsString('<strong>Seorang peserta</strong>', notification_text($rows[1]));
+        set_locale('en');
+        $this->assertStringContainsString('<strong>A participant</strong>', notification_text($rows[1]));
+        $this->assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', render_message(notification_text($rows[1])), 'names are still escaped');
+        $this->assertSame('old text', notification_text(['message' => 'old text', 'message_data' => null]), 'older rows show what was stored');
+    }
+
     public function testAccountsWithoutALanguageGetTheDefault(): void
     {
         $user = $this->makeUser('No Choice', ['locale' => null]);

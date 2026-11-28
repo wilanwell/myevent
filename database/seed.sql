@@ -36,6 +36,9 @@ INSERT INTO `registrations` (`user_id`, `event_id`, `approval_status`) VALUES
 (3, 1, 'Approved'),
 (3, 4, 'Pending');
 
-INSERT INTO `notifications` (`user_id`, `message`, `is_read`) VALUES
-(3, '✅ Your registration for <strong>Art & Sketching Workshop</strong> has been Approved!', 0),
-(2, '📩 <strong>Demo Student</strong> has registered for: <strong>Inter-Faculty Chess Open</strong>.', 0);
+-- message_data is translated when shown; message is the same text in English.
+INSERT INTO `notifications` (`user_id`, `message`, `message_data`, `is_read`) VALUES
+(3, '✅ Your registration for <strong>Art & Sketching Workshop</strong> has been approved. Your ticket is ready in My registrations.',
+    '{"text":"Your registration for {event} has been approved. Your ticket is ready in My registrations.","vars":{"event":{"b":"Art & Sketching Workshop"}},"icon":"✅"}', 0),
+(2, '📩 <strong>Demo Student</strong> has registered for: <strong>Inter-Faculty Chess Open</strong>.',
+    '{"text":"{name} has registered for: {event}.","vars":{"name":{"b":"Demo Student"},"event":{"b":"Inter-Faculty Chess Open"}},"icon":"📩"}', 0);

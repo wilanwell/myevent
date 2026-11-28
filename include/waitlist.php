@@ -92,7 +92,7 @@ function promote_waitlist(mysqli $conn, int $eventId): int
                 $name = (string) db_value($conn, 'SELECT name FROM users WHERE user_id = ?', 'i', [(int) $next['user_id']]);
                 $event = $state['event_name'];
                 notify_user($conn, (int) $next['user_id'],
-                    fn() => '🎟️ ' . __('A place opened up for {event}. You moved off the waitlist and your registration is now waiting for the organiser\'s approval.', ['event' => "<strong>{$event}</strong>"]),
+                    notice('A place opened up for {event}. You moved off the waitlist and your registration is now waiting for the organiser\'s approval.', ['event' => bold($event)], '🎟️'),
                     'participant',
                     fn() => [
                         'subject' => __('A place opened up: {event}', ['event' => $event]),
@@ -103,7 +103,7 @@ function promote_waitlist(mysqli $conn, int $eventId): int
                     ]);
                 if (!empty($state['created_by'])) {
                     notify_user($conn, (int) $state['created_by'],
-                        fn() => '⬆️ ' . __('{name} moved from the waitlist into {event} and is waiting for your approval.', ['name' => "<strong>{$name}</strong>", 'event' => "<strong>{$event}</strong>"]),
+                        notice('{name} moved from the waitlist into {event} and is waiting for your approval.', ['name' => bold($name), 'event' => bold($event)], '⬆️'),
                         'organiser',
                         fn() => [
                             'subject' => __('Waitlist: {name} moved into {event}', ['name' => $name, 'event' => $event]),

@@ -57,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $approved = $action === 'approve';
         $withdrawn = !$approved && $reg['approval_status'] === 'Approved'; // an approved place taken back
         // Both run in the participant's language inside notify_user().
-        $inApp = fn() => $approved
-            ? '✅ ' . __('Your registration for {event} has been approved. Your ticket is ready in My registrations.', ['event' => "<strong>{$name}</strong>"])
+        $inApp = $approved
+            ? notice('Your registration for {event} has been approved. Your ticket is ready in My registrations.', ['event' => bold($name)], '✅')
             : ($withdrawn
-                ? __('Your approved place at {event} has been withdrawn, so your ticket is no longer valid.', ['event' => "<strong>{$name}</strong>"])
-                : __('Your registration for {event} was not approved.', ['event' => "<strong>{$name}</strong>"]));
+                ? notice('Your approved place at {event} has been withdrawn, so your ticket is no longer valid.', ['event' => bold($name)], '⚠️')
+                : notice('Your registration for {event} was not approved.', ['event' => bold($name)], '❌'));
         $email = fn() => $approved ? [
             'subject' => __('You\'re in: {event}', ['event' => $name]),
             'heading' => __('Your registration is approved'),

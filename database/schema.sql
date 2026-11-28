@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `notif_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
   `message` text NOT NULL,
+  `message_data` text DEFAULT NULL COMMENT 'JSON {text, vars, icon}: translated when shown',
   `is_read` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`notif_id`),

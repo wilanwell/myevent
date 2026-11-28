@@ -111,6 +111,12 @@ reg_event a >/dev/null; n=$(sql "SELECT COUNT(*) FROM registrations WHERE event_
 echo "== Output escaping"
 page=$(curl -s -b "$(jar a)" "$BASE/users/notifications.php")
 if echo "$page" | grep -q '<script>alert(1)</script>'; then fail "notification HTML is escaped"; else pass "notification HTML is escaped"; fi
+echo "$page" | grep -q 'has registered for:' && pass "the organiser's bell is in English" || fail "the organiser's bell is in English"
+t=$(tok a users/notifications.php)
+curl -s -b "$(jar a)" -c "$(jar a)" -o /dev/null -d "csrf_token=$t&locale=ms&return=%2Fmyevent%2Fusers%2Fnotifications.php" "$BASE/lang.php"
+curl -s -b "$(jar a)" "$BASE/users/notifications.php" | grep -q 'telah mendaftar untuk:' && pass "switching to Malay also translates earlier notifications" || fail "switching to Malay also translates earlier notifications"
+t=$(tok a users/notifications.php)
+curl -s -b "$(jar a)" -c "$(jar a)" -o /dev/null -d "csrf_token=$t&locale=en&return=%2Fmyevent%2Fusers%2Fnotifications.php" "$BASE/lang.php"
 
 echo "== Access control"
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/users/manage_participants.php?event_id=$EV"); check "participant cannot open organiser's list ($r)" '[ "$r" = 302 ]'

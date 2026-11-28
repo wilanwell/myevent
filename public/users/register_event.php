@@ -92,7 +92,7 @@ try {
         $student = $_SESSION['name'] ?? '';
         $name = $event['event_name'];
         notify_user($conn, (int) $event['created_by'],
-            fn() => '📩 ' . __('{name} has registered for: {event}.', ['name' => '<strong>' . ($student ?: __('A participant')) . '</strong>', 'event' => "<strong>{$name}</strong>"]),
+            notice('{name} has registered for: {event}.', ['name' => bold($student ?: phrase('A participant')), 'event' => bold($name)], '📩'),
             'organiser',
             fn() => [
                 'subject' => __('New registration: {event}', ['event' => $name]),

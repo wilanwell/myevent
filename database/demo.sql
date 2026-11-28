@@ -124,7 +124,10 @@ INSERT INTO `feedback` (`event_id`, `user_id`, `rating`, `comment`, `created_at`
 (10, 9, 4, NULL,                                                NOW() - INTERVAL 8 DAY),
 (10, 13, 5, 'Well refereed.',                                   NOW() - INTERVAL 8 DAY);
 
-INSERT INTO `notifications` (`user_id`, `message`, `is_read`, `created_at`) VALUES
-(2, '📩 <strong>Kevin Lim</strong> has registered for: <strong>Art & Sketching Workshop</strong>.', 0, NOW() - INTERVAL 1 DAY),
-(2, '📩 <strong>Amirul Hakim</strong> has registered for: <strong>Campus Photography Walk</strong>.', 0, NOW() - INTERVAL 1 DAY),
-(3, '⭐ How was <strong>Mini Futsal League</strong>? Rate it from My registrations.', 0, NOW() - INTERVAL 9 DAY);
+INSERT INTO `notifications` (`user_id`, `message`, `message_data`, `is_read`, `created_at`) VALUES
+(2, '📩 <strong>Kevin Lim</strong> has registered for: <strong>Art & Sketching Workshop</strong>.',
+    '{"text":"{name} has registered for: {event}.","vars":{"name":{"b":"Kevin Lim"},"event":{"b":"Art & Sketching Workshop"}},"icon":"📩"}', 0, NOW() - INTERVAL 1 DAY),
+(2, '📩 <strong>Amirul Hakim</strong> has registered for: <strong>Campus Photography Walk</strong>.',
+    '{"text":"{name} has registered for: {event}.","vars":{"name":{"b":"Amirul Hakim"},"event":{"b":"Campus Photography Walk"}},"icon":"📩"}', 0, NOW() - INTERVAL 1 DAY),
+(3, '📅 The venue of <strong>Art & Sketching Workshop</strong> changed. Check the new details.',
+    '{"text":"The {what} of {event} changed. Check the new details.","vars":{"what":[{"t":"venue"}],"event":{"b":"Art & Sketching Workshop"}},"icon":"📅"}', 0, NOW() - INTERVAL 2 DAY);

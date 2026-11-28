@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_registration']
             $who = $_SESSION['name'] ?? '';
             $eventName = $was['event_name'];
             notify_user($conn, (int) $was['created_by'],
-                fn() => '↩️ ' . __('{name} cancelled their registration for {event}.', ['name' => '<strong>' . ($who ?: __('A participant')) . '</strong>', 'event' => "<strong>{$eventName}</strong>"]),
+                notice('{name} cancelled their registration for {event}.', ['name' => bold($who ?: phrase('A participant')), 'event' => bold($eventName)], '↩️'),
                 'organiser');
         }
         promote_waitlist($conn, $event_id);

@@ -34,7 +34,7 @@ function i18n_scan(string $root): array
         $n = count($tokens);
         for ($i = 0; $i < $n; $i++) {
             $tok = $tokens[$i];
-            if (!is_array($tok) || $tok[0] !== T_STRING || !in_array($tok[1], ['__', 't', 'th', '_n'], true)) {
+            if (!is_array($tok) || $tok[0] !== T_STRING || !in_array($tok[1], ['__', 't', 'th', '_n', 'notice', 'phrase'], true)) {
                 continue;
             }
             // Skip method calls / definitions: ->t(  ::t(  function t(

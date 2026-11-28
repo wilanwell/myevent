@@ -69,7 +69,8 @@ $dbUser === 'root'
     : report('PASS', 'Database password is set');
 $schemaOk = db_value($conn, "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'waitlist'")
     && db_value($conn, "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'events' AND COLUMN_NAME = 'end_time'")
-    && db_value($conn, "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'locale'");
+    && db_value($conn, "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'locale'")
+    && db_value($conn, "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'message_data'");
 $schemaOk ? report('PASS', 'Schema is up to date') : report('FAIL', 'Schema is behind', 'Apply the files in database/migrations/ in order.');
 $demo = (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE email LIKE '%@myevent.test'");
 $demo > 0
