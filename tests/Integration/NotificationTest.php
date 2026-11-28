@@ -140,8 +140,8 @@ final class NotificationTest extends DatabaseTestCase
         set_locale('en'); // the organiser cancelling uses English
         notify_event_cancelled($this->db, $event);
 
-        $this->assertStringContainsString('telah dibatalkan oleh penganjur', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$malay]));
-        $this->assertStringContainsString('has been cancelled by the organiser', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$english]));
+        $this->assertStringContainsString('Hackathon</strong> telah dibatalkan.', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$malay]));
+        $this->assertStringContainsString('Hackathon</strong> has been cancelled.', (string) db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$english]));
 
         $byRecipient = array_column(MailSpy::messages(), null, 'to');
         $ms = $byRecipient['aisyah@example.test'];
@@ -165,5 +165,18 @@ final class NotificationTest extends DatabaseTestCase
         set_locale('en');
 
         $this->assertSame('Dashboard', db_value($this->db, 'SELECT message FROM notifications WHERE user_id = ?', 'i', [$user]));
+    }
+
+    public function testOrganisersHearWhenAnAdministratorChangesTheirEvent(): void
+    {
+        $organiser = $this->makeUser('Owner', ['locale' => 'en']);
+        notify_organiser_of_admin_change($this->db, $organiser, 'Hackathon', 'deleted');
+        notify_organiser_of_admin_change($this->db, $organiser, 'Hackathon', 'assigned');
+        notify_organiser_of_admin_change($this->db, null, 'Orphan', 'edited'); // no organiser: nobody to tell
+
+        $messages = array_column(db_all($this->db, 'SELECT message FROM notifications WHERE user_id = ? ORDER BY notif_id', 'i', [$organiser]), 'message');
+        $this->assertCount(2, $messages);
+        $this->assertStringContainsString('An administrator deleted your event <strong>Hackathon</strong>', $messages[0]);
+        $this->assertStringContainsString('made you the organiser of <strong>Hackathon</strong>', $messages[1]);
     }
 }

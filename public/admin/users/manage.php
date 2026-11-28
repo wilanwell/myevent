@@ -137,13 +137,17 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <td class="num"><?= (int) $user['joined'] ?></td>
                         <td class="cell-muted"><?= e(ldate('j M Y', $user['created_at'])) ?></td>
                         <td class="actions">
+                            <?php if (is_demo_account($user['email'])): ?>
+                                <span class="badge" title="<?= t('Demo accounts cannot be edited or deleted, so every visitor can still sign in.') ?>"><?= t('Demo account') ?></span>
+                            <?php else: ?>
                             <a class="btn btn-ghost btn-icon" href="edit.php?id=<?= (int) $user['user_id'] ?>" title="<?= t('Edit user') ?>" aria-label="<?= t('Edit {name}', ['name' => $user['name']]) ?>"><i class="fa-solid fa-pen"></i></a>
                             <?php if ((int) $user['user_id'] !== $me): ?>
-                                <form action="delete.php" method="POST" data-confirm="Delete <?= e($user['name']) ?>? Their registrations will be removed and their events will have no organiser.">
+                                <form action="delete.php" method="POST" data-confirm="<?= t('Delete {name}? Their registrations will be removed and their events will have no organiser.', ['name' => $user['name']]) ?>">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="id" value="<?= (int) $user['user_id'] ?>">
                                     <button type="submit" class="btn btn-danger btn-icon" title="<?= t('Delete user') ?>" aria-label="<?= t('Delete {name}', ['name' => $user['name']]) ?>"><i class="fa-solid fa-trash-can"></i></button>
                                 </form>
+                            <?php endif; ?>
                             <?php endif; ?>
                         </td>
                     </tr>

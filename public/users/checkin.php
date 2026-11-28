@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reg && $problem === '') {
         $stmt->bind_param('i', $reg['reg_id']);
         $stmt->execute();
         $stmt->close();
-        audit($conn, 'registration.checkin', 'registration', (int) $reg['reg_id'], $reg['name'] . ' at ' . $reg['event_name']);
+        audit($conn, 'registration.checkin', 'registration', (int) $reg['reg_id'], $reg['name'] . ' · ' . $reg['event_name']);
         flash('success', __('{name} is checked in.', ['name' => $reg['name']]));
     } else {
         flash('info', __('{name} was already checked in.', ['name' => $reg['name']]));

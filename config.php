@@ -167,6 +167,17 @@ $conn = new mysqli(
 $conn->set_charset('utf8mb4');
 $conn->query("SET time_zone = '" . (new DateTime())->format('P') . "'");
 
+// The account decides, not the session: a deleted account is signed out at once and a
+// changed role (an admin demoted or promoted) applies from the very next request.
+if (!empty($_SESSION['loggedin']) && isset($_SESSION['user_id'])) {
+    $__role = db_value($conn, 'SELECT role FROM users WHERE user_id = ?', 'i', [(int) $_SESSION['user_id']]);
+    if ($__role === null) {
+        force_logout(__('Your account could not be found. Please log in again.'));
+    }
+    $_SESSION['role'] = trim((string) $__role);
+    unset($__role);
+}
+
 /* --- 7. CSRF: every POST must carry a valid token ------------------- */
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     csrf_verify();

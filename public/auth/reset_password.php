@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         login_clear_failures($conn, $reset['email']);
-        audit($conn, 'password.reset', 'user', (int) $reset['user_id'], 'Password reset via emailed link for ' . $reset['email']);
+        audit($conn, 'password.reset', 'user', (int) $reset['user_id'], $reset['email']);
         with_locale($reset['locale'] ?: current_locale(), static function () use ($reset) {
             $vars = ['name' => $reset['name'], 'app' => APP_NAME];
             send_mail($reset['email'], __('Your {app} password was changed', $vars),

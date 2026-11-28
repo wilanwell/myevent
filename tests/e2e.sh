@@ -111,6 +111,15 @@ n=$(sql "SELECT COUNT(*) FROM audit_log WHERE action = 'registration.approve' AN
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' -X POST "$BASE/admin/users/delete.php"); check "non-admin cannot use admin actions ($r)" '[ "$r" = 403 ]'
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "non-admin cannot read the audit log ($r)" '[ "$r" = 403 ]'
 
+echo "== Roles follow the account, not the session"
+sql "UPDATE users SET role = 'Admin' WHERE email = 'qa_b@example.test'"
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "promotion applies on the next request ($r)" '[ "$r" = 200 ]'
+sql "UPDATE users SET role = 'User' WHERE email = 'qa_b@example.test'"
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "demotion applies on the next request ($r)" '[ "$r" = 403 ]'
+r=$(register d "QA Gone" qa_d@example.test "$PW"); r=$(login d qa_d@example.test "$PW")
+sql "DELETE FROM users WHERE email = 'qa_d@example.test'"
+r=$(curl -s -b "$(jar d)" -c "$(jar d)" -o /dev/null -w '%{redirect_url}' "$BASE/users/dashboard.php"); check "deleted account is signed out" '[[ "$r" == *auth/login.php ]]'
+
 echo "== Web root (only public/ is served)"
 for path in .env config.php include/security.php lang/ms.php database/schema.sql tools/backup.php storage/logs/.gitkeep \
             vendor/autoload.php composer.json phpunit.xml tests/e2e.sh .git/HEAD README.md public/.htaccess uploads/.htaccess; do
@@ -163,6 +172,12 @@ n=$(sql "SELECT COUNT(*) FROM waitlist WHERE event_id = $EV"); check "promoted p
 n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_c@example.test' AND n.message LIKE '%place opened up%'")
 check "promoted person is notified" '[ "$n" = 1 ]'
 n=$(sql "SELECT COUNT(*) FROM registrations WHERE event_id = $EV AND approval_status <> 'Rejected'"); check "capacity still respected after promotion" '[ "$n" = 1 ]'
+sql "INSERT INTO registrations (event_id, user_id, approval_status) SELECT $EV, user_id, 'Rejected' FROM users WHERE email = 'qa_b@example.test'"
+BREG=$(sql "SELECT r.reg_id FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_b@example.test'")
+t=$(tok a "users/manage_participants.php?event_id=$EV")
+curl -s -b "$(jar a)" -o /dev/null -d "csrf_token=$t&action=approve&reg_id=$BREG" "$BASE/users/manage_participants.php?event_id=$EV"
+st=$(sql "SELECT approval_status FROM registrations WHERE reg_id = $BREG"); check "a rejected person cannot be approved into a full event ($st)" '[ "$st" = Rejected ]'
+sql "DELETE FROM registrations WHERE reg_id = $BREG"
 
 echo "== Feedback"
 CREG=$(sql "SELECT r.reg_id FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")

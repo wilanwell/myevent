@@ -15,6 +15,7 @@ if (!$editor_event) {
 
 $editor_redirect = 'admin/events/manage.php';
 $editor_cancel   = 'manage.php';
+$editor_pick_organiser = true;
 $page_title      = __('Edit event');
 $nav_active      = 'admin_events';
 $nav_area        = 'admin';

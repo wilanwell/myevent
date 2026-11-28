@@ -93,12 +93,12 @@ function notify_event_cancelled(mysqli $conn, int $eventId): int
     $name = $event['event_name'];
     foreach ($people as $uid) {
         notify_user($conn, $uid,
-            fn() => '❌ ' . __('{event} has been cancelled by the organiser.', ['event' => "<strong>{$name}</strong>"]),
+            fn() => '❌ ' . __('{event} has been cancelled.', ['event' => "<strong>{$name}</strong>"]),
             'participant',
             fn() => [
                 'subject' => __('Cancelled: {event}', ['event' => $name]),
                 'heading' => __('This event has been cancelled'),
-                'intro'   => __('The organiser has cancelled {event}. Your registration has been removed, so there is nothing you need to do.', ['event' => $name]),
+                'intro'   => __('{event} has been cancelled. Your registration has been removed, so there is nothing you need to do.', ['event' => $name]),
                 'facts'   => event_facts($event),
                 'button'  => [__('Find another event'), BASE_URL . 'browse_events.php'],
             ]);
@@ -135,7 +135,7 @@ function notify_event_changed(mysqli $conn, array $before, array $after): int
             fn() => [
                 'subject'  => __('Updated: {event}', ['event' => $name]),
                 'heading'  => __('Event details have changed'),
-                'intro'    => __('The organiser changed the {what} of {event}. Here are the new details.', ['what' => $what(), 'event' => $name]),
+                'intro'    => __('The {what} of {event} has changed. Here are the new details.', ['what' => $what(), 'event' => $name]),
                 'facts'    => event_facts($after),
                 'button'   => [__('View the event'), event_link((int) $after['event_id'])],
                 'footnote' => __('If you added this event to your calendar, update it there too.'),
@@ -184,4 +184,22 @@ function queue_event_reminders(mysqli $conn): int
             ]);
     }
     return $sent;
+}
+
+/**
+ * Tell an organiser that an administrator edited or deleted their event ($what: 'edited' | 'deleted' | 'assigned').
+ * Nothing is sent when the organiser is the one acting, or the event has no organiser.
+ */
+function notify_organiser_of_admin_change(mysqli $conn, ?int $organiserId, string $eventName, string $what): void
+{
+    if (!$organiserId || $organiserId === current_user_id()) {
+        return;
+    }
+    notify_user($conn, $organiserId,
+        fn() => '🛡️ ' . match ($what) {
+            'deleted'  => __('An administrator deleted your event {event}.', ['event' => "<strong>{$eventName}</strong>"]),
+            'assigned' => __('An administrator made you the organiser of {event}. You can manage it from My events.', ['event' => "<strong>{$eventName}</strong>"]),
+            default    => __('An administrator edited your event {event}.', ['event' => "<strong>{$eventName}</strong>"]),
+        },
+        'organiser');
 }

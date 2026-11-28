@@ -7,6 +7,7 @@
  *   $editor_redirect  string  Where to go after saving (path relative to BASE_URL).
  *   $editor_cancel    string  URL for the Cancel button.
  *   $page_title, $nav_active, $nav_area   Layout settings.
+ *   $editor_pick_organiser bool  Admin screens: choose which user organises the event.
  *
  * Ownership must already be checked by the including page.
  */
@@ -80,10 +81,23 @@ $data     = $editing ? $editor_event : [
     'max_participants' => 0, 'fee' => 0, 'remarks' => '', 'visibility' => 'Public', 'poster_path' => null,
 ];
 $errors   = [];
+$pick_organiser = !empty($editor_pick_organiser);
+$original_organiser = $editing && $editor_event['created_by'] !== null ? (int) $editor_event['created_by'] : null;
+$organiser_id = $editing ? $original_organiser : current_user_id();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     [$input, $errors] = event_input($conn);
     $data = array_merge($data, $input);
+    if ($pick_organiser) {
+        $picked = (int) ($_POST['organiser_id'] ?? 0);
+        if ($picked === 0 && $original_organiser === null && $editing) {
+            $organiser_id = null; // keep an event that has no organiser as it is
+        } elseif ($picked > 0 && db_value($conn, 'SELECT 1 FROM users WHERE user_id = ?', 'i', [$picked])) {
+            $organiser_id = $picked;
+        } else {
+            $errors['organiser_id'] = __('Choose who organises this event.');
+        }
+    }
 
     if (!$errors) {
         [$newPoster, $uploadError] = upload_image($_FILES['poster'] ?? null, POSTER_DIR, 'event');
@@ -103,22 +117,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare(
                 'UPDATE events SET event_name = ?, description = ?, category_id = ?, contact_no = ?, venue = ?,
                         event_date = ?, event_time = ?, end_time = ?, mode = ?, reg_close_date = ?, max_participants = ?,
-                        fee = ?, remarks = ?, visibility = ?, poster_path = ?
+                        fee = ?, remarks = ?, visibility = ?, poster_path = ?, created_by = ?
                  WHERE event_id = ?');
+            $cols[] = $organiser_id;
             $cols[] = (int) $editor_event['event_id'];
-            $stmt->bind_param($types . 'i', ...$cols);
+            $stmt->bind_param($types . 'ii', ...$cols);
         } else {
             $stmt = $conn->prepare(
                 'INSERT INTO events (event_name, description, category_id, contact_no, venue, event_date, event_time, end_time,
                                      mode, reg_close_date, max_participants, fee, remarks, visibility, poster_path, created_by)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-            $cols[] = current_user_id();
+            $cols[] = $organiser_id;
             $stmt->bind_param($types . 'i', ...$cols);
         }
         $stmt->execute();
         $savedId = $editing ? (int) $editor_event['event_id'] : (int) $conn->insert_id;
         $stmt->close();
         audit($conn, $editing ? 'event.update' : 'event.create', 'event', $savedId, $data['event_name']);
+        if (is_admin()) {
+            // Organisers hear about an administrator changing their event, or handing it to them.
+            if ($editing) {
+                notify_organiser_of_admin_change($conn, $original_organiser, $data['event_name'], 'edited');
+            }
+            if ($organiser_id !== $original_organiser) {
+                notify_organiser_of_admin_change($conn, $organiser_id, $data['event_name'], 'assigned');
+            }
+        }
         if ($editing) {
             $told = notify_event_changed($conn, $editor_event, array_merge($data, ['event_id' => $savedId]));
             if ($told) {
@@ -139,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = db_all($conn, 'SELECT category_id, categoryName FROM event_category ORDER BY categoryName');
+$organisers = $pick_organiser ? db_all($conn, 'SELECT user_id, name, email, role FROM users ORDER BY name') : [];
 
 /** Field error message, if any. */
 $err = static function (string $field) use ($errors): string {
@@ -192,6 +217,21 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <option value="Private"<?= $data['visibility'] === 'Private' ? ' selected' : '' ?>><?= t('Private: only people with the link') ?></option>
                     </select>
                 </div>
+                <?php if ($pick_organiser): ?>
+                    <div class="field span-2">
+                        <label for="ev-org"><?= t('Organiser') ?> <span class="req" aria-hidden="true">*</span></label>
+                        <select id="ev-org" name="organiser_id" required<?= $invalid('organiser_id') ?>>
+                            <?php if ($editing && $original_organiser === null): ?>
+                                <option value="0"<?= $organiser_id === null ? ' selected' : '' ?>><?= t('No organiser') ?></option>
+                            <?php endif; ?>
+                            <?php foreach ($organisers as $o): ?>
+                                <option value="<?= (int) $o['user_id'] ?>"<?= $organiser_id === (int) $o['user_id'] ? ' selected' : '' ?>><?= e($o['name']) ?> (<?= e($o['email']) ?>)<?= (int) $o['user_id'] === current_user_id() ? ' ' . t('(you)') : '' ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <span class="hint" id="ev-org-hint"><?= t('The organiser approves registrations, checks people in and gets the organiser emails.') ?></span>
+                        <?= $err('organiser_id') ?>
+                    </div>
+                <?php endif; ?>
                 <div class="field span-2">
                     <label for="ev-desc"><?= t('Description') ?></label>
                     <textarea id="ev-desc" name="description" rows="4"><?= e($data['description']) ?></textarea>

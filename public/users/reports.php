@@ -9,6 +9,7 @@ require_login();
 $rf = report_filter($_GET, current_user_id()); // always limited to your own events
 
 if (($_GET['export'] ?? '') === 'csv') {
+    audit($conn, 'report.export', null, null, $rf['label']); // logged like the admin export
     report_export_csv(report_events($conn, $rf), $rf, 'MyEvent_my_events_report');
 }
 

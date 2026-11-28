@@ -33,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('error', __('Only approved participants can be marked for attendance.'));
         redirect($self);
     }
+    // A rejected registration gave its place up (maybe to the waitlist), so taking it back needs a free place.
+    if ($action === 'approve' && $reg['approval_status'] === 'Rejected' && (event_availability($conn, $event_id)['full'] ?? false)) {
+        flash('error', __('This event is full, so this person cannot be approved again. Free a place or raise the capacity first.'));
+        redirect($self);
+    }
 
     [$set, $notice, $done] = $updates[$action];
     $stmt = $conn->prepare("UPDATE registrations SET $set WHERE reg_id = ? AND event_id = ?");

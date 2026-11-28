@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $changes[] = "$f: {$original[$f]} -> {$$f}";
                 }
             }
-            audit($conn, $original['role'] !== $role ? 'user.role_change' : 'user.update', 'user', $id, implode('; ', $changes) ?: 'No changes');
+            audit($conn, $original['role'] !== $role ? 'user.role_change' : 'user.update', 'user', $id, implode('; ', $changes) ?: '—');
             flash('success', __('Saved changes to {name}.', ['name' => $name]));
             redirect('admin/users/manage.php');
         } catch (mysqli_sql_exception $ex) {

@@ -112,7 +112,7 @@ function promote_waitlist(mysqli $conn, int $eventId): int
                             'button'  => [__('Review participants'), BASE_URL . 'users/manage_participants.php?event_id=' . $eventId],
                         ]);
                 }
-                audit($conn, 'waitlist.promote', 'event', $eventId, $name . ' promoted into ' . $state['event_name']);
+                audit($conn, 'waitlist.promote', 'event', $eventId, $name . ' → ' . $state['event_name']);
             }
         }
         $conn->commit();

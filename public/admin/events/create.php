@@ -9,6 +9,7 @@ require_admin();
 $editor_event    = null;
 $editor_redirect = 'admin/events/manage.php';
 $editor_cancel   = 'manage.php';
+$editor_pick_organiser = true;
 $page_title      = __('Create event');
 $nav_active      = 'admin_create';
 $nav_area        = 'admin';

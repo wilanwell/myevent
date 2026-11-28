@@ -10,6 +10,7 @@ $stats = [
     'users'    => (int) db_value($conn, 'SELECT COUNT(*) FROM users'),
     'students' => (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE category = 'Student'"),
     'staff'    => (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE category = 'Staff'"),
+    'public'   => (int) db_value($conn, "SELECT COUNT(*) FROM users WHERE category = 'Public'"),
     'upcoming' => (int) db_value($conn, 'SELECT COUNT(*) FROM events WHERE event_date >= CURDATE()'),
     'events'   => (int) db_value($conn, 'SELECT COUNT(*) FROM events'),
     'regs'     => (int) db_value($conn, 'SELECT COUNT(*) FROM registrations'),
@@ -18,11 +19,18 @@ $stats = [
 
 $upcoming = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date, e.venue, e.max_participants, u.name AS organiser,
-            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Approved') AS approved,
+            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status <> 'Rejected') AS taken,
             (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Pending') AS pending
      FROM events e LEFT JOIN users u ON u.user_id = e.created_by
      WHERE e.event_date >= CURDATE()
      ORDER BY e.event_date ASC LIMIT 6");
+
+// Upcoming events whose organiser account was deleted: only an admin can run them now.
+$orphans = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date,
+            (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.event_id AND r.approval_status = 'Pending') AS pending
+     FROM events e WHERE e.created_by IS NULL AND e.event_date >= CURDATE()
+     ORDER BY e.event_date ASC");
 
 $recent = db_all($conn,
     'SELECT r.registration_date, r.approval_status, u.name, e.event_id, e.event_name
@@ -50,7 +58,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
 <div class="stats">
     <a class="stat" href="users/manage.php">
         <span class="stat-icon"><i class="fa-solid fa-users"></i></span>
-        <span><span class="stat-value"><?= $stats['users'] ?></span><br><span class="stat-label"><?= t('{students} students, {staff} staff', ['students' => $stats['students'], 'staff' => $stats['staff']]) ?></span></span>
+        <span><span class="stat-value"><?= $stats['users'] ?></span><br><span class="stat-label"><?= t('{students} students, {staff} staff, {public} public', ['students' => $stats['students'], 'staff' => $stats['staff'], 'public' => $stats['public']]) ?></span></span>
     </a>
     <a class="stat" href="events/manage.php">
         <span class="stat-icon is-sky"><i class="fa-solid fa-calendar-days"></i></span>
@@ -65,6 +73,33 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <span><span class="stat-value"><?= $stats['pending'] ?></span><br><span class="stat-label"><?= t('Waiting for organiser review') ?></span></span>
     </div>
 </div>
+
+<?php if ($orphans): ?>
+<section class="card rate-prompt">
+    <div class="card-header">
+        <div>
+            <h2 class="card-title"><?= t('Events without an organiser') ?></h2>
+            <p class="card-subtitle"><?= t('Their organiser\'s account was deleted. Choose a new organiser, or review the registrations yourself.') ?></p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table">
+            <tbody>
+            <?php foreach ($orphans as $row): ?>
+                <tr>
+                    <td><div class="event-cell"><?= datestub($row['event_date']) ?><span class="event-cell-title"><?= e($row['event_name']) ?></span></div></td>
+                    <td class="actions">
+                        <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning"><?= t('{n} pending', ['n' => (int) $row['pending']]) ?></span><?php endif; ?>
+                        <a class="btn btn-secondary btn-sm" href="organizer/manage_participants.php?event_id=<?= (int) $row['event_id'] ?>"><?= t('Participants') ?></a>
+                        <a class="btn btn-primary btn-sm" href="events/edit.php?id=<?= (int) $row['event_id'] ?>"><?= t('Choose organiser') ?></a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+<?php endif; ?>
 
 <div class="grid-2">
     <section class="card">
@@ -88,7 +123,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                 </div>
                             </td>
                             <td class="num">
-                                <?= (int) $row['approved'] ?><?= (int) $row['max_participants'] > 0 ? ' / ' . (int) $row['max_participants'] : '' ?>
+                                <?= (int) $row['taken'] ?> / <?= (int) $row['max_participants'] > 0 ? (int) $row['max_participants'] : '&infin;' ?>
                                 <?php if ((int) $row['pending'] > 0): ?><span class="badge badge-warning cell-sub"><?= t('{n} pending', ['n' => (int) $row['pending']]) ?></span><?php endif; ?>
                             </td>
                         </tr>
