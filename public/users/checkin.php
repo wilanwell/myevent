@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reg && $problem === '') {
 
 $page_title = __('Check in');
 $nav_active = 'checkin';
-$nav_area   = is_admin() && $reg && (int) $reg['created_by'] !== current_user_id() ? 'admin' : 'user';
+$nav_area   = is_admin() && $reg && (int) $reg['created_by'] !== current_user_id() ? 'admin' : 'auto';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 

@@ -153,7 +153,7 @@ function login_start_session(mysqli $conn, array $user): string
         $up->execute();
         $up->close();
     }
-    return $_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'index.php';
+    return $_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'users/dashboard.php';
 }
 
 /** Log out and send to the login page, e.g. when the signed-in account no longer exists. */

@@ -703,4 +703,6 @@ return [
     'The page you are looking for does not exist.' => 'Halaman yang anda cari tidak wujud.',
     'Try the demo' => 'Cuba demo',
     'You are exploring a demo. Changes are reset every night and no emails are sent.' => 'Anda sedang meneroka demo. Perubahan ditetapkan semula setiap malam dan tiada emel dihantar.',
+    'Upcoming events I organise' => 'Acara anjuran saya yang akan datang',
+    'Waitlist #{n}' => 'Senarai menunggu #{n}',
 ];

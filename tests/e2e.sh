@@ -70,8 +70,8 @@ check "POST without CSRF token is rejected ($code)" '[ "$code" = 403 ]'
 r=$(register a "QA Organiser" qa_a@example.test "$PW"); check "register organiser" '[[ "$r" == *auth/login.php ]]'
 r=$(register b '<script>alert(1)</script>Bob' qa_b@example.test "$PW"); check "register participant with HTML in name" '[[ "$r" == *auth/login.php ]]'
 r=$(register c "QA Weak" qa_weak@example.test short); check "weak password rejected" '[[ "$r" == *register.php ]]'
-r=$(login a qa_a@example.test "$PW"); check "organiser logs in" '[[ "$r" == *index.php ]]'
-r=$(login b qa_b@example.test "$PW"); check "participant logs in" '[[ "$r" == *index.php ]]'
+r=$(login a qa_a@example.test "$PW"); check "organiser logs in" '[[ "$r" == *users/dashboard.php ]]'
+r=$(login b qa_b@example.test "$PW"); check "participant logs in" '[[ "$r" == *users/dashboard.php ]]'
 
 echo "== Uploads"
 echo '<?php system("whoami"); ?>' > "$WORK/evil.png"
@@ -272,7 +272,7 @@ n=$(sql "SELECT COUNT(*) FROM password_resets pr JOIN users u ON u.user_id = pr.
 check "only the token hash is stored" '[ "$n" = 1 ]'
 page=$(curl -s -b "$(jar r)" -c "$(jar r)" "$LINK"); t=$(echo "$page" | grep -o 'name="csrf_token" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"$//')
 curl -s -b "$(jar r)" -c "$(jar r)" -o /dev/null --data-urlencode "csrf_token=$t" -d "token=${LINK##*=}&password=Reset-Pass-99&password_confirm=Reset-Pass-99" "$BASE/auth/reset_password.php"
-r=$(login h qa_b@example.test Reset-Pass-99); check "new password works" '[[ "$r" == *index.php ]]'
+r=$(login h qa_b@example.test Reset-Pass-99); check "new password works" '[[ "$r" == *users/dashboard.php ]]'
 r=$(curl -s -o /dev/null -w '%{redirect_url}' "$LINK"); check "reset link works only once" '[[ "$r" == *forgot_password.php ]]'
 
 echo "== Sessions"

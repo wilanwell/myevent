@@ -32,6 +32,7 @@ $mark->close();
 
 $page_title = __('Notifications');
 $nav_active = 'notifications';
+$nav_area   = 'auto';
 include ROOT_PATH . '/include/layout/app_start.php';
 ?>
 

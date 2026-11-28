@@ -5,6 +5,9 @@
 require_once __DIR__ . '/../../config.php';
 
 require_login();
+if (is_admin()) {
+    redirect('admin/profile.php'); // admins have one profile page, in the admin area
+}
 
 $user = db_all($conn,
     'SELECT name, email, phone, organization, bio, profile_pic, category, recommend_events, email_participant, email_organiser FROM users WHERE user_id = ?',

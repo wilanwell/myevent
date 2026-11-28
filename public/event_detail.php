@@ -100,6 +100,13 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <div class="capacity" role="img" aria-label="<?= t('{taken} of {capacity} places taken', ['taken' => $taken, 'capacity' => $capacity]) ?>"><span style="width: <?= min(100, round($taken / $capacity * 100)) ?>%"></span></div>
             <?php endif; ?>
 
+            <?php if (is_admin() && !$is_owner): ?>
+                <div class="btn-stack">
+                    <a class="btn btn-secondary btn-block" href="admin/organizer/manage_participants.php?event_id=<?= $event_id ?>"><i class="fa-solid fa-shield-halved"></i> <?= t('Manage participants') ?></a>
+                    <a class="btn btn-secondary btn-block" href="admin/events/edit.php?id=<?= $event_id ?>"><i class="fa-solid fa-shield-halved"></i> <?= t('Edit event') ?></a>
+                </div>
+            <?php endif; ?>
+
             <?php if ($is_owner): ?>
                 <div class="btn-stack">
                     <a class="btn btn-primary btn-block" href="users/manage_participants.php?event_id=<?= $event_id ?>"><i class="fa-solid fa-users"></i> <?= t('Manage participants') ?></a>

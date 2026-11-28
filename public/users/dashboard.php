@@ -19,6 +19,20 @@ $upcoming = db_all($conn,
      WHERE r.user_id = ? AND e.event_date >= CURDATE() AND r.approval_status <> 'Rejected'
      ORDER BY e.event_date ASC LIMIT 5", 'i', [$user_id]);
 
+// Places you are queuing for on full events (a place frees up -> you become Pending).
+$waiting = db_all($conn,
+    "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue
+     FROM waitlist w JOIN events e ON e.event_id = w.event_id
+     WHERE w.user_id = ? AND e.event_date >= CURDATE()
+     ORDER BY e.event_date ASC LIMIT 5", 'i', [$user_id]);
+foreach ($waiting as &$w) {
+    $w['wait_pos'] = waitlist_position($conn, (int) $w['event_id'], $user_id);
+}
+unset($w);
+$coming = array_merge($upcoming, $waiting);
+usort($coming, fn($a, $b) => [$a['event_date'], $a['event_time']] <=> [$b['event_date'], $b['event_time']]);
+$coming = array_slice($coming, 0, 6);
+
 $to_rate = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date
      FROM registrations r JOIN events e ON e.event_id = r.event_id
@@ -97,11 +111,11 @@ include ROOT_PATH . '/include/layout/app_start.php';
             <h2 class="card-title"><?= t('My upcoming events') ?></h2>
             <a class="btn btn-ghost btn-sm" href="my_registrations.php"><?= t('View all') ?></a>
         </div>
-        <?php if ($upcoming): ?>
+        <?php if ($coming): ?>
             <div class="table-wrap">
                 <table class="table">
                     <tbody>
-                    <?php foreach ($upcoming as $row): ?>
+                    <?php foreach ($coming as $row): ?>
                         <tr>
                             <td>
                                 <div class="event-cell">
@@ -112,7 +126,13 @@ include ROOT_PATH . '/include/layout/app_start.php';
                                     </div>
                                 </div>
                             </td>
-                            <td class="actions"><?= status_badge($row['approval_status']) ?></td>
+                            <td class="actions">
+                                <?php if (isset($row['wait_pos'])): ?>
+                                    <span class="badge badge-info"><?= t('Waitlist #{n}', ['n' => (int) $row['wait_pos']]) ?></span>
+                                <?php else: ?>
+                                    <?= status_badge($row['approval_status']) ?>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -130,7 +150,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
 
     <section class="card">
         <div class="card-header">
-            <h2 class="card-title"><?= t('Events I organise') ?></h2>
+            <h2 class="card-title"><?= t('Upcoming events I organise') ?></h2>
             <a class="btn btn-ghost btn-sm" href="my_events.php"><?= t('Manage') ?></a>
         </div>
         <?php if ($organising): ?>

@@ -22,6 +22,12 @@
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') { setNav(false); }
     });
+    // A click outside the open menu (and its button) closes it; the app layout's scrim does the same.
+    document.addEventListener('click', function (e) {
+        if (!toggle || !body.classList.contains('nav-open')) { return; }
+        var menu = document.getElementById(toggle.getAttribute('aria-controls'));
+        if (!toggle.contains(e.target) && !(menu && menu.contains(e.target))) { setNav(false); }
+    });
 
     // Confirm before destructive submits: <form data-confirm="Delete this event?">
     document.addEventListener('submit', function (e) {

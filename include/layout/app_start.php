@@ -5,11 +5,19 @@
  * Set before including:
  *   $page_title  string  Shown in the <title> and the top bar.
  *   $nav_active  string  Key of the active sidebar link (see $nav below).
- *   $nav_area    string  'user' (default) or 'admin'.
+ *   $nav_area    string  'user' (default), 'admin', or 'auto' for pages both areas share
+ *                        (notifications, check-in): an admin keeps the menu they came from.
  */
 $page_title = $page_title ?? APP_NAME;
 $nav_active = $nav_active ?? '';
 $nav_area   = $nav_area ?? 'user';
+if (!is_admin()) {
+    $nav_area = 'user';
+} elseif ($nav_area === 'auto') {
+    $nav_area = ($_SESSION['nav_area'] ?? 'user') === 'admin' ? 'admin' : 'user';
+} else {
+    $_SESSION['nav_area'] = $nav_area;
+}
 
 $__uid    = current_user_id();
 $__me     = db_all($conn, 'SELECT name, profile_pic FROM users WHERE user_id = ?', 'i', [$__uid])[0]
@@ -24,16 +32,20 @@ if ($nav_area === 'admin') {
             'admin_overview' => [__('Overview'),     'fa-gauge-high',    $u . 'admin/index.php'],
             'admin_events'   => [__('All events'),   'fa-calendar-days', $u . 'admin/events/manage.php'],
             'admin_create'   => [__('Create event'), 'fa-circle-plus',   $u . 'admin/events/create.php'],
+            'checkin'        => [__('Check in'),     'fa-qrcode',        $u . 'users/checkin.php'],
             'admin_reports'  => [__('Reports'),      'fa-chart-column',  $u . 'admin/reports.php'],
             'admin_users'    => [__('Users'),        'fa-users',         $u . 'admin/users/manage.php'],
             'admin_audit'    => [__('Audit log'),    'fa-clipboard-list', $u . 'admin/audit.php'],
-            'admin_profile'  => [__('My profile'),   'fa-user-gear',     $u . 'admin/profile.php'],
         ],
         __('My account') => [
+            'notifications'  => [__('Notifications'),    'fa-bell',      $u . 'users/notifications.php', $__unread],
+            'admin_profile'  => [__('My profile'),       'fa-user-gear', $u . 'admin/profile.php'],
             'dashboard'      => [__('Participant view'), 'fa-user',      $u . 'users/dashboard.php'],
         ],
     ];
 } else {
+    // Organiser tools appear once you have an event; until then only the way to create one.
+    $__organises = (bool) db_value($conn, 'SELECT EXISTS(SELECT 1 FROM events WHERE created_by = ?)', 'i', [$__uid]);
     $nav = [
         __('Participate') => [
             'dashboard'        => [__('Dashboard'),        'fa-house',             $u . 'users/dashboard.php'],
@@ -44,19 +56,21 @@ if ($nav_area === 'admin') {
         __('Organise') => [
             'my_events'        => [__('My events'),        'fa-calendar-check',    $u . 'users/my_events.php'],
             'create_event'     => [__('Create event'),     'fa-circle-plus',       $u . 'users/create_event.php'],
+        ] + ($__organises ? [
             'participants'     => [__('Participants'),     'fa-users-gear',        $u . 'users/manage_participants.php'],
             'checkin'          => [__('Check in'),         'fa-qrcode',            $u . 'users/checkin.php'],
             'reports'          => [__('Reports'),          'fa-chart-column',      $u . 'users/reports.php'],
-        ],
+        ] : []),
         __('Account') => [
-            'profile'          => [__('My profile'),       'fa-user-pen',          $u . 'users/profile.php'],
+            // Admins have one profile page, in the admin area.
+            'profile'          => [__('My profile'),       'fa-user-pen',          $u . (is_admin() ? 'admin/profile.php' : 'users/profile.php')],
         ],
     ];
     if (is_admin()) {
         $nav[__('Account')]['admin_overview'] = [__('Admin panel'), 'fa-shield-halved', $u . 'admin/index.php'];
     }
 }
-$__profileUrl = $nav_area === 'admin' ? $u . 'admin/profile.php' : $u . 'users/profile.php';
+$__profileUrl = $u . (is_admin() ? 'admin/profile.php' : 'users/profile.php');
 ?>
 <!DOCTYPE html>
 <html lang="<?= e(html_lang()) ?>">
