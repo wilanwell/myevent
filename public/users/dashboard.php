@@ -11,7 +11,7 @@ $user_id = current_user_id();
 $my_registrations  = (int) db_value($conn, 'SELECT COUNT(*) FROM registrations WHERE user_id = ?', 'i', [$user_id]);
 $my_pending        = (int) db_value($conn, "SELECT COUNT(*) FROM registrations WHERE user_id = ? AND approval_status = 'Pending'", 'i', [$user_id]);
 $my_created_events = (int) db_value($conn, 'SELECT COUNT(*) FROM events WHERE created_by = ?', 'i', [$user_id]);
-$open_events       = (int) db_value($conn, "SELECT COUNT(*) FROM events WHERE visibility = 'Public' AND COALESCE(reg_close_date, event_date) >= CURDATE()");
+$open_events       = (int) db_value($conn, "SELECT COUNT(*) FROM events e WHERE e.visibility = 'Public' AND COALESCE(e.reg_close_date, e.event_date) >= CURDATE() AND " . sql_has_free_place());
 
 $upcoming = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue, r.approval_status

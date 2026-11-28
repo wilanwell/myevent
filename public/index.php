@@ -15,7 +15,8 @@ $upcoming = db_all($conn,
      ORDER BY e.event_date ASC, e.event_time ASC LIMIT 7");
 
 $next = array_shift($upcoming);
-$open_count = (int) db_value($conn, "SELECT COUNT(*) FROM events WHERE visibility = 'Public' AND COALESCE(reg_close_date, event_date) >= CURDATE()");
+// Open = registration not closed and a place still free (full events only take a waitlist).
+$open_count = (int) db_value($conn, "SELECT COUNT(*) FROM events e WHERE e.visibility = 'Public' AND COALESCE(e.reg_close_date, e.event_date) >= CURDATE() AND " . sql_has_free_place());
 $categories = db_all($conn, 'SELECT category_id, categoryName FROM event_category ORDER BY categoryName');
 
 $page_title  = __('Campus events');
@@ -83,7 +84,9 @@ include ROOT_PATH . '/include/layout/public_start.php';
         <div class="event-grid">
             <?php foreach ($upcoming as $ev) { include ROOT_PATH . '/include/partials/event_card.php'; } ?>
         </div>
-    <?php elseif (!$next): ?>
+    <?php elseif ($next): ?>
+        <p class="cell-muted"><?= t('Nothing else is scheduled yet. Check back soon, or see the event above.') ?></p>
+    <?php else: ?>
         <div class="public-card empty-state">
             <i class="fa-regular fa-calendar"></i>
             <h3><?= t('No upcoming events right now') ?></h3>

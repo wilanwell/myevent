@@ -6,6 +6,7 @@
  *   $page_title   string  <title> text.
  *   $nav_current  string  'home' | 'browse' | 'login' | 'register'
  *   $page_desc    string  Optional meta description.
+ *   $page_noindex bool    Ask search engines not to index the page (unlisted events).
  */
 $page_title  = $page_title ?? APP_NAME;
 $nav_current = $nav_current ?? '';
@@ -27,14 +28,15 @@ $__cur = static fn(string $key) => $nav_current === $key ? ' aria-current="page"
     <?php include ROOT_PATH . '/include/layout/theme_head.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="<?= e($page_desc) ?>">
+    <?php if (!empty($page_noindex)): ?><meta name="robots" content="noindex, nofollow"><?php endif; ?>
     <title><?= e($page_title) ?> | <?= e(APP_NAME) ?></title>
     <link rel="icon" href="<?= e($u) ?>assets/img/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=Geist:wght@400..700&amp;display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=18">
-    <link rel="stylesheet" href="<?= e($u) ?>assets/css/public.css?v=18">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/app.css?v=19">
+    <link rel="stylesheet" href="<?= e($u) ?>assets/css/public.css?v=19">
 </head>
 <body class="app public">
 <a class="skip-link" href="#main"><?= t('Skip to content') ?></a>
@@ -61,6 +63,10 @@ $__cur = static fn(string $key) => $nav_current === $key ? ' aria-current="page"
                     <?php if ($__unread): ?><span class="dot"><?= $__unread > 9 ? '9+' : $__unread ?></span><?php endif; ?>
                 </a>
                 <a class="btn btn-primary" href="<?= e($u) ?><?= is_admin() ? 'admin/index.php' : 'users/dashboard.php' ?>"><?= t('Dashboard') ?></a>
+                <form class="site-logout" action="<?= e($u) ?>auth/logout.php" method="POST">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="site-link"><?= t('Log out') ?></button>
+                </form>
             <?php else: ?>
                 <a class="site-link" href="<?= e($u) ?>auth/login.php"<?= $__cur('login') ?>><?= t('Log in') ?></a>
                 <a class="btn btn-primary" href="<?= e($u) ?>auth/register.php"><?= t('Create account') ?></a>

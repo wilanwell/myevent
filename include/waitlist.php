@@ -122,3 +122,13 @@ function promote_waitlist(mysqli $conn, int $eventId): int
     }
     return $promoted;
 }
+
+/**
+ * SQL condition: event $alias still has a free place (no limit, or fewer places held than
+ * capacity). Used by the "open for registration" counts so full events are not counted.
+ */
+function sql_has_free_place(string $alias = 'e'): string
+{
+    return "($alias.max_participants = 0 OR (SELECT COUNT(*) FROM registrations rfp
+             WHERE rfp.event_id = $alias.event_id AND rfp.approval_status <> 'Rejected') < $alias.max_participants)";
+}

@@ -28,6 +28,9 @@ body.public { background: var(--paper); }
 }
 .site-link:hover { color: var(--ink); background: var(--paper); }
 .site-link[aria-current="page"] { color: var(--ink); font-weight: 600; }
+/* The public Log out is a POST form; make its button look like the other links. */
+.site-logout { display: contents; }
+button.site-link { background: none; border: 0; font: inherit; cursor: pointer; text-align: left; }
 .site-link[aria-current="page"]::after {
     content: ""; position: absolute; left: var(--sp-3); right: var(--sp-3); bottom: -15px; height: 3px; border-radius: 3px 3px 0 0; background: var(--saffron);
 }

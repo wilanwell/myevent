@@ -40,6 +40,7 @@ $login_back = 'auth/login.php?next=' . rawurlencode('event_detail.php?id=' . $ev
 $page_title = $event['event_name'];
 $page_desc  = mb_substr(trim((string) $event['description']), 0, 155) ?: __('Event details and registration.');
 $nav_current = 'browse';
+$page_noindex = $event['visibility'] === 'Private'; // unlisted: keep it out of search engines
 include ROOT_PATH . '/include/layout/public_start.php';
 ?>
 
@@ -91,13 +92,13 @@ include ROOT_PATH . '/include/layout/public_start.php';
                     : e(ldate('g:i A', $event['event_time'])) ?></span></div></li>
                 <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i><div><b><?= e($event['venue']) ?></b><span><?= t('{mode} event', ['mode' => status_label($event['mode'])]) ?></span></div></li>
                 <li><i class="fa-solid fa-tag" aria-hidden="true"></i><div><b><?= e(format_fee($event['fee'])) ?></b><span><?= (float) $event['fee'] > 0 ? t('Paid to the organiser') : t('No fee') ?></span></div></li>
-                <li><i class="fa-regular fa-hourglass" aria-hidden="true"></i><div><b><?= $is_closed ? t('Registration closed {date}', ['date' => ldate('j M Y', $close_date)]) : t('Registration closes {date}', ['date' => ldate('j M Y', $close_date)]) ?></b><span><?= $capacity > 0 ? t('{left} of {capacity} places left', ['left' => max(0, $capacity - $taken), 'capacity' => $capacity]) : t('No limit on places') ?></span></div></li>
+                <li><i class="fa-regular fa-hourglass" aria-hidden="true"></i><div><b><?= $is_closed ? t('Registration closed {date}', ['date' => ldate('j M Y', $close_date)]) : t('Registration closes {date}', ['date' => ldate('j M Y', $close_date)]) ?></b><span><?= $is_past ? t('This event has ended.') : ($capacity > 0 ? t('{left} of {capacity} places left', ['left' => max(0, $capacity - $taken), 'capacity' => $capacity]) : t('No limit on places')) ?></span></div></li>
                 <?php if (!empty($event['contact_no'])): ?>
                     <li><i class="fa-solid fa-phone" aria-hidden="true"></i><div><b><a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $event['contact_no'])) ?>"><?= e($event['contact_no']) ?></a></b><span><?= t('Organiser contact') ?></span></div></li>
                 <?php endif; ?>
             </ul>
 
-            <?php if ($capacity > 0): ?>
+            <?php if ($capacity > 0 && !$is_past): ?>
                 <div class="capacity" role="img" aria-label="<?= t('{taken} of {capacity} places taken', ['taken' => $taken, 'capacity' => $capacity]) ?>"><span style="width: <?= min(100, round($taken / $capacity * 100)) ?>%"></span></div>
             <?php endif; ?>
 
@@ -120,6 +121,9 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <div class="status-box flash-info"><i class="fa-regular fa-clock"></i> <?= t('Registered. Waiting for the organiser to approve.') ?></div>
             <?php elseif ($status === 'Rejected'): ?>
                 <div class="status-box flash-error"><i class="fa-solid fa-circle-xmark"></i> <?= t('Your registration was not approved.') ?></div>
+            <?php elseif ($is_past): ?>
+                <div class="status-box is-muted"><i class="fa-regular fa-calendar-check"></i> <?= t('This event has ended.') ?></div>
+                <a class="btn btn-secondary btn-block" href="browse_events.php"><?= t('Find an upcoming event') ?></a>
             <?php elseif ($is_closed): ?>
                 <div class="status-box is-muted"><i class="fa-solid fa-lock"></i> <?= t('Registration has closed.') ?></div>
             <?php elseif ($wait_pos): ?>

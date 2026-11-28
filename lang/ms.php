@@ -728,4 +728,9 @@ return [
     '{taken} of {capacity} places taken ({approved} approved, {pending} to review), {present} checked in.' => '{taken} daripada {capacity} tempat diambil ({approved} diluluskan, {pending} untuk disemak), {present} sudah daftar masuk.',
     'A registration the organiser did not approve cannot be cancelled.' => 'Pendaftaran yang tidak diluluskan oleh penganjur tidak boleh dibatalkan.',
     'This event has already started, so the registration can no longer be cancelled.' => 'Acara ini sudah bermula, jadi pendaftaran tidak lagi boleh dibatalkan.',
+    'Find an upcoming event' => 'Cari acara akan datang',
+    'Nothing else is scheduled yet. Check back soon, or see the event above.' => 'Belum ada acara lain dijadualkan. Semak semula nanti, atau lihat acara di atas.',
+    'This event has ended.' => 'Acara ini telah tamat.',
+    '{n} more are full, but you can join their waitlists.' => '{n} lagi sudah penuh, tetapi anda boleh menyertai senarai menunggunya.',
+    '{n} more is full, but you can join its waitlist.' => '{n} lagi sudah penuh, tetapi anda boleh menyertai senarai menunggunya.',
 ];

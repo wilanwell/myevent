@@ -221,6 +221,11 @@ n=$(sql "SELECT COUNT(*) FROM feedback WHERE event_id = $EV"); check "out-of-ran
 curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null --data-urlencode "csrf_token=$t" --data-urlencode "comment=<b>Great</b> session" -d "event_id=$EV&rating=4" "$BASE/users/feedback.php"
 curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null --data-urlencode "csrf_token=$t" -d "event_id=$EV&rating=5" "$BASE/users/feedback.php"
 st=$(sql "SELECT CONCAT(COUNT(*), ':', MAX(rating)) FROM feedback WHERE event_id = $EV"); check "one feedback per person, editable ($st)" '[ "$st" = 1:5 ]'
+curl -s "$BASE/event_detail.php?id=$EV" | grep -q 'This event has ended' && pass "a past event says it has ended" || fail "a past event says it has ended"
+sql "UPDATE events SET visibility = 'Private' WHERE event_id = $EV"
+curl -s "$BASE/event_detail.php?id=$EV" | grep -q 'name="robots" content="noindex' && pass "private event pages ask search engines not to index them" || fail "private event pages ask search engines not to index them"
+curl -s "$BASE/event_detail.php?id=$(sql "SELECT event_id FROM events WHERE visibility = 'Public' ORDER BY event_id LIMIT 1")" | grep -q 'name="robots"' && fail "public event pages can be indexed" || pass "public event pages can be indexed"
+sql "UPDATE events SET visibility = 'Public' WHERE event_id = $EV"
 t=$(tok c users/my_registrations.php)
 curl -s -b "$(jar c)" -c "$(jar c)" -o /dev/null -d "csrf_token=$t&event_id=$EV&cancel_registration=1" "$BASE/users/my_registrations.php"
 n=$(sql "SELECT COUNT(*) FROM registrations WHERE reg_id = $CREG"); check "a registration cannot be cancelled once the event started" '[ "$n" = 1 ]'

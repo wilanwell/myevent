@@ -6,7 +6,7 @@
 require_once __DIR__ . '/../config.php';
 
 $event = db_all($conn,
-    'SELECT event_id, event_name, description, venue, event_date, event_time, end_time FROM events WHERE event_id = ?',
+    'SELECT event_id, event_name, description, venue, event_date, event_time, end_time, visibility FROM events WHERE event_id = ?',
     'i', [(int) ($_GET['id'] ?? 0)])[0] ?? null;
 
 if (!$event) {
@@ -17,4 +17,7 @@ if (!$event) {
 header('Content-Type: text/calendar; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . safe_filename($event['event_name'], 'ics') . '"');
 header('Cache-Control: no-cache');
+if ($event['visibility'] === 'Private') {
+    header('X-Robots-Tag: noindex'); // unlisted event
+}
 echo event_ics($event);

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             <p class="cell-muted"><?= t('You will need to log in again to see your registrations.') ?></p>
             <form method="POST" class="form-actions">
                 <?= csrf_field() ?>
-                <a class="btn btn-ghost" href="<?= e(BASE_URL) ?>users/dashboard.php"><?= t('Stay logged in') ?></a>
+                <a class="btn btn-ghost" href="<?= e(BASE_URL) ?><?= is_admin() ? 'admin/index.php' : 'users/dashboard.php' ?>"><?= t('Stay logged in') ?></a>
                 <button type="submit" class="btn btn-primary"><?= t('Log out') ?></button>
             </form>
         </div>

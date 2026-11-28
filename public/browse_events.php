@@ -28,6 +28,8 @@ if ($category > 0) {
 
 $from  = 'FROM events e LEFT JOIN event_category c ON c.category_id = e.category_id';
 $total = (int) db_value($conn, "SELECT COUNT(*) $from WHERE $where", $types, $params);
+// Full events stay in the list (people can join their waitlist) but are not counted as open.
+$full  = $show === 'open' ? (int) db_value($conn, "SELECT COUNT(*) $from WHERE $where AND NOT " . sql_has_free_place(), $types, $params) : 0;
 $p     = paginate($total, 12);
 $events = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue, e.mode, e.fee, e.poster_path,
@@ -51,8 +53,11 @@ include ROOT_PATH . '/include/layout/public_start.php';
             <h1 class="page-title"><?= t('Browse events') ?></h1>
             <p><?php
                 if ($show === 'open') {
-                    $__summary = $q !== '' ? _n('{n} event open for registration matching “{q}”.', '{n} events open for registration matching “{q}”.', $total, ['q' => $q])
-                                           : _n('{n} event open for registration.', '{n} events open for registration.', $total);
+                    $__summary = $q !== '' ? _n('{n} event open for registration matching “{q}”.', '{n} events open for registration matching “{q}”.', $total - $full, ['q' => $q])
+                                           : _n('{n} event open for registration.', '{n} events open for registration.', $total - $full);
+                    if ($full) {
+                        $__summary .= ' ' . _n('{n} more is full, but you can join its waitlist.', '{n} more are full, but you can join their waitlists.', $full);
+                    }
                 } else {
                     $__summary = $q !== '' ? _n('{n} event coming up matching “{q}”.', '{n} events coming up matching “{q}”.', $total, ['q' => $q])
                                            : _n('{n} event coming up.', '{n} events coming up.', $total);
