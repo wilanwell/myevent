@@ -12,8 +12,20 @@ $user_id = current_user_id();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_registration'])) {
     $event_id = (int) ($_POST['event_id'] ?? 0);
     $was = db_all($conn,
-        'SELECT r.approval_status, e.event_name, e.event_date, e.created_by FROM registrations r JOIN events e ON e.event_id = r.event_id
+        'SELECT r.approval_status, e.event_name, e.event_date, e.created_by,
+                TIMESTAMP(e.event_date, e.event_time) <= NOW() AS started
+         FROM registrations r JOIN events e ON e.event_id = r.event_id
          WHERE r.event_id = ? AND r.user_id = ?', 'ii', [$event_id, $user_id])[0] ?? null;
+    // A rejected registration stays on record (deleting it would let you register again),
+    // and once an event has started its registrations are history (attendance, ratings).
+    if ($was && $was['approval_status'] === 'Rejected') {
+        flash('error', __('A registration the organiser did not approve cannot be cancelled.'));
+        redirect('users/my_registrations.php');
+    }
+    if ($was && (int) $was['started']) {
+        flash('error', __('This event has already started, so the registration can no longer be cancelled.'));
+        redirect('users/my_registrations.php');
+    }
     $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ? AND user_id = ?');
     $stmt->bind_param('ii', $event_id, $user_id);
     $stmt->execute();
@@ -43,7 +55,8 @@ $p = paginate($total, 10);
 
 $rows = db_all($conn,
     "SELECT e.event_id, e.event_name, e.event_date, e.event_time, e.venue, e.mode,
-            r.approval_status, r.attendance_status, r.registration_date, f.rating AS my_rating
+            r.approval_status, r.attendance_status, r.registration_date, f.rating AS my_rating,
+            TIMESTAMP(e.event_date, e.event_time) <= NOW() AS started
      FROM registrations r JOIN events e ON e.event_id = r.event_id
      LEFT JOIN feedback f ON f.event_id = r.event_id AND f.user_id = r.user_id
      WHERE r.user_id = ? AND $dateFilter
@@ -142,19 +155,21 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <td><?= status_badge($row['approval_status']) ?></td>
                         <?php if ($show === 'past'): ?><td><?= status_badge($row['attendance_status']) ?></td><?php endif; ?>
                         <td class="actions">
-                            <?php if ($show === 'past' && $row['approval_status'] === 'Approved'): ?>
+                            <?php $approvedRow = $row['approval_status'] === 'Approved'; ?>
+                            <?php if ($approvedRow && (int) $row['started']): // rate once it has started, even on the day ?>
                                 <?php if ($row['my_rating']): ?>
                                     <?= rating_stars((float) $row['my_rating']) ?>
                                     <a class="btn btn-ghost btn-sm" href="feedback.php?event_id=<?= (int) $row['event_id'] ?>"><?= t('Edit') ?></a>
                                 <?php else: ?>
                                     <a class="btn btn-primary btn-sm" href="feedback.php?event_id=<?= (int) $row['event_id'] ?>"><i class="fa-regular fa-star"></i> <?= t('Rate event') ?></a>
                                 <?php endif; ?>
-                            <?php elseif ($row['approval_status'] === 'Approved'): ?>
+                            <?php endif; ?>
+                            <?php if ($approvedRow && $show === 'upcoming'): ?>
                                 <a class="btn btn-secondary btn-sm" href="generate_ticket.php?event_id=<?= (int) $row['event_id'] ?>" target="_blank" rel="noopener">
                                     <i class="fa-solid fa-ticket"></i> <?= t('Ticket') ?>
                                 </a>
                             <?php endif; ?>
-                            <?php if ($show === 'upcoming'): ?>
+                            <?php if ($show === 'upcoming' && !(int) $row['started'] && $row['approval_status'] !== 'Rejected'): ?>
                                 <form method="POST" data-confirm="<?= t('Cancel your registration for this event? Your spot will be released.') ?>">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="event_id" value="<?= (int) $row['event_id'] ?>">

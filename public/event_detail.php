@@ -35,6 +35,7 @@ $status     = is_logged_in()
 $wait_pos   = is_logged_in() ? waitlist_position($conn, $event_id, current_user_id()) : null;
 $wait_count = $is_full ? waitlist_count($conn, $event_id) : 0;
 $is_past    = $event['event_date'] < date('Y-m-d');
+$login_back = 'auth/login.php?next=' . rawurlencode('event_detail.php?id=' . $event_id); // come back here after logging in
 
 $page_title = $event['event_name'];
 $page_desc  = mb_substr(trim((string) $event['description']), 0, 155) ?: __('Event details and registration.');
@@ -139,7 +140,7 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 <p class="cell-muted no-margin"><?= t('You will be registered automatically, in order, if someone cancels.') ?></p>
             <?php elseif ($is_full): ?>
                 <div class="status-box is-muted"><i class="fa-solid fa-users-slash"></i> <?= t('This event is full.') ?></div>
-                <a class="btn btn-primary btn-block btn-lg" href="auth/login.php"><?= t('Log in to join the waitlist') ?></a>
+                <a class="btn btn-primary btn-block btn-lg" href="<?= e($login_back) ?>"><?= t('Log in to join the waitlist') ?></a>
             <?php elseif (is_logged_in()): ?>
                 <form action="users/register_event.php" method="POST">
                     <?= csrf_field() ?>
@@ -148,8 +149,8 @@ include ROOT_PATH . '/include/layout/public_start.php';
                 </form>
                 <p class="cell-muted no-margin"><?= t('The organiser reviews each registration. You will get a notification when it is approved.') ?></p>
             <?php else: ?>
-                <a class="btn btn-primary btn-block btn-lg" href="auth/login.php"><?= t('Log in to register') ?></a>
-                <p class="cell-muted no-margin"><?= t('New here?') ?> <a href="auth/register.php"><?= t('Create a free account') ?></a>.</p>
+                <a class="btn btn-primary btn-block btn-lg" href="<?= e($login_back) ?>"><?= t('Log in to register') ?></a>
+                <p class="cell-muted no-margin"><?= t('New here?') ?> <a href="auth/register.php?next=<?= e(rawurlencode('event_detail.php?id=' . $event_id)) ?>"><?= t('Create a free account') ?></a>.</p>
             <?php endif; ?>
 
             <?php if (!$is_past): ?>

@@ -58,7 +58,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                     <div class="notice-body">
                         <div><?= render_message($row['message']) ?></div>
                         <div class="notice-time">
-                            <time datetime="<?= e(date('c', strtotime($row['created_at']))) ?>"><?= e(date('j M Y, g:i A', strtotime($row['created_at']))) ?></time>
+                            <time datetime="<?= e(date('c', strtotime($row['created_at']))) ?>"><?= e(ldate('j M Y, g:i A', $row['created_at'])) ?></time>
                             <?php if ((int) $row['is_read'] === 0): ?><span class="badge badge-brand"><?= t('New') ?></span><?php endif; ?>
                         </div>
                     </div>

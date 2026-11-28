@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../config.php';
 
 if (!is_logged_in()) {
     flash('info', __('Log in as the event organiser to check this ticket in.'));
+    remember_current_page(); // back to this ticket after logging in
     redirect('auth/login.php');
 }
 

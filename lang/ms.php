@@ -726,4 +726,6 @@ return [
     '{n} place is already taken, so the capacity must be at least {n} (or leave it empty for no limit).' => '{n} tempat sudah diambil, jadi kapasiti mestilah sekurang-kurangnya {n} (atau biarkan kosong untuk tiada had).',
     '{n} places are already taken, so the capacity must be at least {n} (or leave it empty for no limit).' => '{n} tempat sudah diambil, jadi kapasiti mestilah sekurang-kurangnya {n} (atau biarkan kosong untuk tiada had).',
     '{taken} of {capacity} places taken ({approved} approved, {pending} to review), {present} checked in.' => '{taken} daripada {capacity} tempat diambil ({approved} diluluskan, {pending} untuk disemak), {present} sudah daftar masuk.',
+    'A registration the organiser did not approve cannot be cancelled.' => 'Pendaftaran yang tidak diluluskan oleh penganjur tidak boleh dibatalkan.',
+    'This event has already started, so the registration can no longer be cancelled.' => 'Acara ini sudah bermula, jadi pendaftaran tidak lagi boleh dibatalkan.',
 ];

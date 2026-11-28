@@ -87,11 +87,48 @@ function current_user_id(): ?int
     return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
 }
 
-/** Redirect to the login page unless a user is logged in. */
+/** Redirect to the login page unless a user is logged in; they come back here afterwards. */
 function require_login(): void
 {
     if (!is_logged_in()) {
+        remember_current_page();
         redirect('auth/login.php');
+    }
+}
+
+/**
+ * A page inside the app to return to after logging in, or null when $path is not one.
+ * Only plain relative paths such as "event_detail.php?id=4" pass, so the value can never
+ * send someone to another site ("//evil.test", "https://...") or back to the sign-in pages.
+ */
+function safe_return_path(?string $path): ?string
+{
+    $path = trim((string) $path);
+    if (!preg_match('#^[A-Za-z0-9_\-]+(/[A-Za-z0-9_\-]+)*\.php(\?[A-Za-z0-9_=&%.\-]*)?$#', $path)
+        || str_starts_with($path, 'auth/')) {
+        return null;
+    }
+    return $path;
+}
+
+/** Remember $path (see safe_return_path) as the page to open after logging in. */
+function remember_return_path(?string $path): void
+{
+    if ($path = safe_return_path($path)) {
+        $_SESSION['after_login'] = $path;
+    }
+}
+
+/** Remember the page being requested now (GET only), relative to the app root. */
+function remember_current_page(): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+        return;
+    }
+    $base = (string) parse_url(BASE_URL, PHP_URL_PATH);
+    $uri  = (string) ($_SERVER['REQUEST_URI'] ?? '');
+    if ($base !== '' && str_starts_with($uri, $base)) {
+        remember_return_path(substr($uri, strlen($base)));
     }
 }
 
@@ -131,10 +168,12 @@ function end_session(): void
 
 /**
  * Sign $user in: new session ID (prevents fixation) and fresh session data.
- * $user needs user_id, name, email, role and locale. Returns the page to land on.
+ * $user needs user_id, name, email, role and locale. Returns the page to land on: the page
+ * they were trying to open before logging in, otherwise their dashboard.
  */
 function login_start_session(mysqli $conn, array $user): string
 {
+    $next = safe_return_path($_SESSION['after_login'] ?? null);
     session_regenerate_id(true);
     $_SESSION = [
         'loggedin'      => true,
@@ -153,7 +192,7 @@ function login_start_session(mysqli $conn, array $user): string
         $up->execute();
         $up->close();
     }
-    return $_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'users/dashboard.php';
+    return $next ?? ($_SESSION['role'] === 'Admin' ? 'admin/index.php' : 'users/dashboard.php');
 }
 
 /** Log out and send to the login page, e.g. when the signed-in account no longer exists. */

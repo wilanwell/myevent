@@ -49,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
 
         flash('success', $existing ? __('Your feedback was updated.') : __('Thanks for your feedback! It helps organisers run better events.'));
-        redirect('users/my_registrations.php?show=past');
+        // Back to the tab that lists this event: an event held today is still under Upcoming.
+        redirect('users/my_registrations.php' . ($event['event_date'] < date('Y-m-d') ? '?show=past' : ''));
     }
 }
 
