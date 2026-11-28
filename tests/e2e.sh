@@ -128,6 +128,8 @@ r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"
 echo "== Roles follow the account, not the session"
 sql "UPDATE users SET role = 'Admin' WHERE email = 'qa_b@example.test'"
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "promotion applies on the next request ($r)" '[ "$r" = 200 ]'
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{redirect_url}' "$BASE/auth/register.php"); check "a signed-in admin opening sign-up goes to the admin panel" '[[ "$r" == *admin/index.php ]]'
+r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{redirect_url}' "$BASE/auth/forgot_password.php"); check "a signed-in admin opening password reset goes to the admin profile" '[[ "$r" == *admin/profile.php ]]'
 sql "UPDATE users SET role = 'User' WHERE email = 'qa_b@example.test'"
 r=$(curl -s -b "$(jar b)" -o /dev/null -w '%{http_code}' "$BASE/admin/audit.php"); check "demotion applies on the next request ($r)" '[ "$r" = 403 ]'
 r=$(register d "QA Gone" qa_d@example.test "$PW"); r=$(login d qa_d@example.test "$PW")

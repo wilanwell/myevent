@@ -8,7 +8,7 @@
 require_once __DIR__ . '/../../config.php';
 
 if (is_logged_in()) {
-    redirect('users/profile.php');
+    redirect(is_admin() ? 'admin/profile.php' : 'users/profile.php'); // change the password there
 }
 
 const RESET_TTL_MINUTES = 60;

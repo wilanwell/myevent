@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../config.php';
 remember_return_path($_GET['next'] ?? null); // e.g. the event page that sent them here
 
 if (is_logged_in()) {
-    redirect('users/dashboard.php');
+    redirect(is_admin() ? 'admin/index.php' : 'users/dashboard.php');
 }
 
 $old = $_SESSION['old_input'] ?? [];
