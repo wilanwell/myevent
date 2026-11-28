@@ -87,6 +87,20 @@ POSTER=$(sql "SELECT poster_path FROM events WHERE event_id = $EV")
 check "poster stored with a random name" '[[ "$POSTER" =~ ^event_[0-9a-f]{24}\.png$ ]]'
 code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/uploads/events/x.php"); check "scripts in uploads are not executable ($code)" '[ "$code" = 403 ] || [ "$code" = 404 ]'
 
+echo "== Event form rules"
+event_form() { local t; t=$(tok a "$1")   # $1 = form page, $2 = event date, $3 = places
+    curl -s -b "$(jar a)" -c "$(jar a)" -o /dev/null -w '%{http_code} %{redirect_url}' -F "csrf_token=$t" -F "event_name=$4" -F "description=d" \
+         -F "category_id=1" -F "venue=Hall" -F "event_date=$2" -F "event_time=10:00" -F "mode=Physical" \
+         -F "reg_close_date=2029-12-31" -F "max_participants=$3" -F "visibility=Public" "$BASE/$1"; }
+r=$(event_form users/create_event.php 2020-01-01 10 "QA Past Event"); n=$(sql "SELECT COUNT(*) FROM events WHERE event_name = 'QA Past Event'")
+check "an event cannot be created in the past" '[[ "$r" == 200* ]] && [ "$n" = 0 ]'
+sql "UPDATE events SET max_participants = 3 WHERE event_id = $EV"
+sql "INSERT INTO registrations (event_id, user_id) SELECT $EV, user_id FROM users WHERE email IN ('qa_a@example.test', 'qa_b@example.test')"
+r=$(event_form "users/edit_event.php?id=$EV" 2030-01-01 1 "QA Real Event"); cap=$(sql "SELECT max_participants FROM events WHERE event_id = $EV")
+check "capacity cannot drop below the places taken (capacity $cap)" '[[ "$r" == 200* ]] && [ "$cap" = 3 ]'
+sql "DELETE FROM registrations WHERE event_id = $EV"
+sql "UPDATE events SET max_participants = 1 WHERE event_id = $EV"
+
 echo "== Registration rules"
 reg_event() { local t; t=$(tok "$1" "event_detail.php?id=$EV")
     curl -s -b "$(jar "$1")" -c "$(jar "$1")" -o /dev/null -w '%{redirect_url}' -d "csrf_token=$t&event_id=$EV" "$BASE/users/register_event.php"; }
@@ -168,6 +182,8 @@ t=$(tok b users/my_registrations.php)
 curl -s -b "$(jar b)" -c "$(jar b)" -o /dev/null -d "csrf_token=$t&event_id=$EV&cancel_registration=1" "$BASE/users/my_registrations.php"
 st=$(sql "SELECT r.approval_status FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")
 check "cancellation promotes the first person in line ($st)" '[ "$st" = Pending ]'
+n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_a@example.test' AND n.message LIKE '%cancelled their registration%'")
+check "organiser is told about the cancellation" '[ "$n" = 1 ]'
 n=$(sql "SELECT COUNT(*) FROM waitlist WHERE event_id = $EV"); check "promoted person leaves the waitlist" '[ "$n" = 0 ]'
 n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_c@example.test' AND n.message LIKE '%place opened up%'")
 check "promoted person is notified" '[ "$n" = 1 ]'
@@ -178,6 +194,17 @@ t=$(tok a "users/manage_participants.php?event_id=$EV")
 curl -s -b "$(jar a)" -o /dev/null -d "csrf_token=$t&action=approve&reg_id=$BREG" "$BASE/users/manage_participants.php?event_id=$EV"
 st=$(sql "SELECT approval_status FROM registrations WHERE reg_id = $BREG"); check "a rejected person cannot be approved into a full event ($st)" '[ "$st" = Rejected ]'
 sql "DELETE FROM registrations WHERE reg_id = $BREG"
+
+echo "== Withdrawing an approved place"
+CREG=$(sql "SELECT r.reg_id FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")
+sql "UPDATE registrations SET approval_status = 'Approved', attendance_status = 'Present', checked_in_at = NOW() WHERE reg_id = $CREG"
+t=$(tok a "users/manage_participants.php?event_id=$EV")
+curl -s -b "$(jar a)" -o /dev/null -d "csrf_token=$t&action=reject&reg_id=$CREG" "$BASE/users/manage_participants.php?event_id=$EV"
+st=$(sql "SELECT CONCAT(approval_status, ':', attendance_status, ':', IFNULL(checked_in_at, 'none')) FROM registrations WHERE reg_id = $CREG")
+check "rejecting clears the check-in ($st)" '[ "$st" = Rejected:Absent:none ]'
+n=$(sql "SELECT COUNT(*) FROM notifications n JOIN users u ON u.user_id = n.user_id WHERE u.email = 'qa_c@example.test' AND n.message LIKE '%has been withdrawn%'")
+check "the person is told their place was withdrawn" '[ "$n" = 1 ]'
+sql "UPDATE registrations SET approval_status = 'Pending' WHERE reg_id = $CREG"
 
 echo "== Feedback"
 CREG=$(sql "SELECT r.reg_id FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE r.event_id = $EV AND u.email = 'qa_c@example.test'")

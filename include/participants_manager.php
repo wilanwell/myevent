@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $updates = [
         'approve' => ["approval_status = 'Approved'", true, __('Registration approved.')],
-        'reject'  => ["approval_status = 'Rejected'", true, __('Registration rejected.')],
+        'reject'  => ["approval_status = 'Rejected', attendance_status = 'Absent', checked_in_at = NULL", true, __('Registration rejected.')],
         'present' => ["attendance_status = 'Present', checked_in_at = NOW()", false, __('Checked in.')],
         'absent'  => ["attendance_status = 'Absent', checked_in_at = NULL", false, __('Check-in undone.')],
     ];
@@ -55,10 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full = db_all($conn, 'SELECT event_id, event_name, event_date, event_time, end_time, venue, mode FROM events WHERE event_id = ?', 'i', [$event_id])[0];
         $name = $full['event_name'];
         $approved = $action === 'approve';
+        $withdrawn = !$approved && $reg['approval_status'] === 'Approved'; // an approved place taken back
         // Both run in the participant's language inside notify_user().
         $inApp = fn() => $approved
             ? '✅ ' . __('Your registration for {event} has been approved. Your ticket is ready in My registrations.', ['event' => "<strong>{$name}</strong>"])
-            : __('Your registration for {event} was not approved.', ['event' => "<strong>{$name}</strong>"]);
+            : ($withdrawn
+                ? __('Your approved place at {event} has been withdrawn, so your ticket is no longer valid.', ['event' => "<strong>{$name}</strong>"])
+                : __('Your registration for {event} was not approved.', ['event' => "<strong>{$name}</strong>"]));
         $email = fn() => $approved ? [
             'subject' => __('You\'re in: {event}', ['event' => $name]),
             'heading' => __('Your registration is approved'),
@@ -68,8 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'footnote' => __('Show the ticket on your phone or printed at the entrance.'),
         ] : [
             'subject' => __('Registration update: {event}', ['event' => $name]),
-            'heading' => __('Your registration was not approved'),
-            'intro'   => __('The organiser was not able to offer you a place at {event} this time.', ['event' => $name]),
+            'heading' => $withdrawn ? __('Your place has been withdrawn') : __('Your registration was not approved'),
+            'intro'   => $withdrawn
+                ? __('Your approved place at {event} has been withdrawn, so your ticket is no longer valid.', ['event' => $name])
+                : __('The organiser was not able to offer you a place at {event} this time.', ['event' => $name]),
             'button'  => [__('Browse other events'), BASE_URL . 'browse_events.php'],
         ];
         notify_user($conn, (int) $reg['user_id'], $inApp, 'participant', $email);
@@ -103,6 +108,7 @@ if ($q !== '') {
 
 /* ---------- CSV export (current filter) ---------- */
 if (($_GET['export'] ?? '') === 'csv') {
+    audit($conn, 'participants.export', 'event', $event_id, $pm_event['event_name']); // names, emails and phone numbers
     $rows = db_all($conn,
         "SELECT u.name, u.email, u.phone, u.category, r.registration_date, r.approval_status, r.attendance_status
          FROM registrations r JOIN users u ON u.user_id = r.user_id
@@ -128,7 +134,7 @@ foreach (db_all($conn, 'SELECT approval_status, COUNT(*) n FROM registrations WH
     $counts[$c['approval_status']] = (int) $c['n'];
     $counts[''] += (int) $c['n'];
 }
-$present = (int) db_value($conn, "SELECT COUNT(*) FROM registrations WHERE event_id = ? AND attendance_status = 'Present'", 'i', [$event_id]);
+$present = (int) db_value($conn, "SELECT COUNT(*) FROM registrations WHERE event_id = ? AND approval_status = 'Approved' AND attendance_status = 'Present'", 'i', [$event_id]);
 
 $total = (int) db_value($conn, "SELECT COUNT(*) FROM registrations r JOIN users u ON u.user_id = r.user_id WHERE $where", $types, $params);
 $p = paginate($total, 15);
@@ -157,7 +163,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
         <p>
             <?= e(ldate('l, j F Y', $pm_event['event_date'])) ?>.
             <?= $capacity > 0
-                ? t('{approved} approved of {capacity} places, {present} checked in.', ['approved' => $counts['Approved'], 'capacity' => $capacity, 'present' => $present])
+                ? t('{taken} of {capacity} places taken ({approved} approved, {pending} to review), {present} checked in.', ['taken' => $counts['Approved'] + $counts['Pending'], 'capacity' => $capacity, 'approved' => $counts['Approved'], 'pending' => $counts['Pending'], 'present' => $present])
                 : t('{approved} approved, {present} checked in.', ['approved' => $counts['Approved'], 'present' => $present]) ?>
         </p>
     </div>

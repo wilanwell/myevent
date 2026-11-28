@@ -21,6 +21,7 @@ $labels = [
     'password.reset'        => __('Reset password'),
     'waitlist.promote'      => __('Moved up from waitlist'),
     'report.export'         => __('Exported report'),
+    'participants.export'   => __('Exported participant list'),
 ];
 $danger = ['user.delete', 'event.delete', 'user.role_change', 'password.reset'];
 

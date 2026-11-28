@@ -94,6 +94,9 @@ include ROOT_PATH . '/include/layout/app_start.php';
                         <?= $reg['checked_in_at'] ? t('Checked in at {time}.', ['time' => ldate('g:i A, j M', $reg['checked_in_at'])]) : t('Checked in.') ?>
                     </div>
                 <?php elseif ($problem === ''): ?>
+                    <?php if ($reg['event_date'] !== date('Y-m-d')): ?>
+                        <div class="status-box flash-info"><i class="fa-regular fa-calendar"></i> <?= t('This event is on {date}, not today. Check in only if that is intended.', ['date' => ldate('j M Y', $reg['event_date'])]) ?></div>
+                    <?php endif; ?>
                     <form method="POST">
                         <?= csrf_field() ?>
                         <input type="hidden" name="code" value="<?= e($code) ?>">
@@ -102,7 +105,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
                 <?php endif; ?>
 
                 <p class="cell-muted no-margin">
-                    <a href="manage_participants.php?event_id=<?= (int) $reg['event_id'] ?>"><?= t('Open participant list') ?></a>
+                    <a href="<?= e(BASE_URL . ((int) $reg['created_by'] === current_user_id() ? 'users/manage_participants.php' : 'admin/organizer/manage_participants.php')) ?>?event_id=<?= (int) $reg['event_id'] ?>"><?= t('Open participant list') ?></a>
                 </p>
             <?php elseif (!$problem): ?>
                 <div class="empty-state">

@@ -99,6 +99,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Dates: a new event, or a date being changed, cannot be in the past. Untouched dates of an
+    // older event are left alone so its other details can still be corrected.
+    $today = date('Y-m-d');
+    $changed = static fn(string $f) => !$editing || substr((string) $editor_event[$f], 0, 10) !== $data[$f];
+    if (!isset($errors['event_date']) && $changed('event_date') && $data['event_date'] < $today) {
+        $errors['event_date'] = __('The event date cannot be in the past.');
+    }
+    if (!isset($errors['reg_close_date']) && valid_date((string) $data['reg_close_date']) && $changed('reg_close_date') && $data['reg_close_date'] < $today) {
+        $errors['reg_close_date'] = __('Registration cannot close on a date that has already passed.');
+    }
+    // Capacity: never below the places already held (pending and approved).
+    if ($editing && (int) $data['max_participants'] > 0) {
+        $held = (int) db_value($conn, "SELECT COUNT(*) FROM registrations WHERE event_id = ? AND approval_status <> 'Rejected'", 'i', [(int) $editor_event['event_id']]);
+        if ((int) $data['max_participants'] < $held) {
+            $errors['max_participants'] = _n('{n} place is already taken, so the capacity must be at least {n} (or leave it empty for no limit).',
+                '{n} places are already taken, so the capacity must be at least {n} (or leave it empty for no limit).', $held);
+        }
+    }
+
     if (!$errors) {
         [$newPoster, $uploadError] = upload_image($_FILES['poster'] ?? null, POSTER_DIR, 'event');
         if ($uploadError) {
@@ -284,8 +303,8 @@ include ROOT_PATH . '/include/layout/app_start.php';
                 </div>
                 <div class="field">
                     <label for="ev-max"><?= t('Places available') ?></label>
-                    <input id="ev-max" type="number" name="max_participants" min="0" step="1" value="<?= (int) $data['max_participants'] ?: '' ?>" placeholder="<?= t('Unlimited') ?>">
-                    <span class="hint"><?= t('Leave empty for no limit.') ?></span>
+                    <input id="ev-max" type="number" name="max_participants" min="0" step="1" value="<?= (int) $data['max_participants'] ?: '' ?>" placeholder="<?= t('Unlimited') ?>"<?= $invalid('max_participants') ?>>
+                    <?= $err('max_participants') ?: '<span class="hint">' . t('Leave empty for no limit.') . '</span>' ?>
                 </div>
                 <div class="field">
                     <label for="ev-fee"><?= t('Fee (RM)') ?></label>

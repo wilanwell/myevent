@@ -11,12 +11,23 @@ $user_id = current_user_id();
 // Cancel a registration (POST, CSRF-checked in config.php)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_registration'])) {
     $event_id = (int) ($_POST['event_id'] ?? 0);
+    $was = db_all($conn,
+        'SELECT r.approval_status, e.event_name, e.event_date, e.created_by FROM registrations r JOIN events e ON e.event_id = r.event_id
+         WHERE r.event_id = ? AND r.user_id = ?', 'ii', [$event_id, $user_id])[0] ?? null;
     $stmt = $conn->prepare('DELETE FROM registrations WHERE event_id = ? AND user_id = ?');
     $stmt->bind_param('ii', $event_id, $user_id);
     $stmt->execute();
     $cancelled = $stmt->affected_rows > 0;
     $stmt->close();
     if ($cancelled) {
+        // Tell the organiser a place freed up (a rejected registration never held one).
+        if ($was && $was['created_by'] && $was['approval_status'] !== 'Rejected' && $was['event_date'] >= date('Y-m-d')) {
+            $who = $_SESSION['name'] ?? '';
+            $eventName = $was['event_name'];
+            notify_user($conn, (int) $was['created_by'],
+                fn() => '↩️ ' . __('{name} cancelled their registration for {event}.', ['name' => '<strong>' . ($who ?: __('A participant')) . '</strong>', 'event' => "<strong>{$eventName}</strong>"]),
+                'organiser');
+        }
         promote_waitlist($conn, $event_id);
     }
     flash($cancelled ? 'success' : 'error', $cancelled ? __('Your registration has been cancelled.') : __('That registration was not found.'));

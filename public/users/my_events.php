@@ -130,7 +130,7 @@ include ROOT_PATH . '/include/layout/app_start.php';
     <?php elseif ($q !== ''): ?>
         <div class="empty-state">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <h3>No events match "<?= e($q) ?>"</h3>
+            <h3><?= t('No events match "{q}"', ['q' => $q]) ?></h3>
             <p><?= t('Try a different name or venue.') ?></p>
             <a class="btn btn-secondary" href="my_events.php"><?= t('Clear search') ?></a>
         </div>
